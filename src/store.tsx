@@ -84,6 +84,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         api.firms.getAll(), api.calls.getAll(), api.reminders.getAll(), api.admin.getAll(),
       ]);
       const merged = { ...defaultAdmin, ...adminData };
+
+      /* ── Sync/repair: ensure every user with role "rep" has a matching admin.reps entry + dropdown ── */
+      let repsDirty = false;
+      const reps = [...(merged.reps || [])];
+      const assignedTo = [...(merged.dropdowns?.assigned_to || [])];
+      const colours = ['#1D9E75','#7F77DD','#378ADD','#EF9F27','#A32D2D','#185FA5','#854F0B'];
+
+      for (const u of merged.users || []) {
+        if (u.role !== 'rep') continue;
+        const uName = u.name.trim();
+        const hasRep = reps.some(r => r.name.toLowerCase() === uName.toLowerCase() || r.id === u.linkedRep);
+        if (!hasRep) {
+          const col = colours[reps.length % colours.length];
+          const init = uName.substring(0, 2).toUpperCase();
+          reps.push({ id: 'r' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name: uName, init, col, mtg: 20, calls: 50, mine: 25, li: 10, status: 'Active' });
+          repsDirty = true;
+        }
+        if (!assignedTo.some(n => n.toLowerCase() === uName.toLowerCase())) {
+          assignedTo.push(uName);
+          repsDirty = true;
+        }
+      }
+
+      if (repsDirty) {
+        merged.reps = reps;
+        merged.dropdowns = { ...merged.dropdowns, assigned_to: assignedTo };
+        // Persist the repaired data back to the server
+        for (const r of reps) {
+          if (!(adminData?.reps || []).find((er: any) => er.id === r.id)) {
+            api.admin.createRep(r).catch(e => console.error('Rep sync create:', e));
+          }
+        }
+        api.admin.updateDropdowns('assigned_to', assignedTo).catch(e => console.error('Dropdown sync:', e));
+      }
+
       setFirmsState(firmsData);       firmsRef.current = firmsData;
       setCallsState(callsData);       callsRef.current = callsData;
       setRemindersState(remindersData); remindersRef.current = remindersData;

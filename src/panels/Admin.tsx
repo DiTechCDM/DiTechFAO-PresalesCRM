@@ -51,8 +51,28 @@ export default function Admin() {
       newAdmin.users = newAdmin.users.map(u=>u.id===userModal.user!.id?{...u,...userForm as User}:u);
       showToast('User saved','ok');
     } else {
-      newAdmin.users = [...newAdmin.users,{id:uid(),name:userForm.name!,email:userForm.email!,password:userForm.password||'changeme',role:userForm.role||'rep',status:'active',linkedRep:userForm.linkedRep||'',perms:userForm.perms||admin.rolePerms?.rep||{}} as User];
-      showToast('User added','ok');
+      const newRole = userForm.role || 'rep';
+      const userName = userForm.name!.trim();
+      newAdmin.users = [...newAdmin.users,{id:uid(),name:userName,email:userForm.email!,password:userForm.password||'changeme',role:newRole,status:'active',linkedRep:userForm.linkedRep||'',perms:userForm.perms||admin.rolePerms?.rep||{}} as User];
+
+      // Auto-create rep entry + dropdown when new user is a rep
+      if (newRole === 'rep') {
+        const alreadyRep = (newAdmin.reps || []).some(r => r.name.toLowerCase() === userName.toLowerCase());
+        if (!alreadyRep) {
+          const colours = ['#1D9E75','#7F77DD','#378ADD','#EF9F27','#A32D2D','#185FA5','#854F0B'];
+          const col = colours[(newAdmin.reps || []).length % colours.length];
+          const init = userName.substring(0, 2).toUpperCase();
+          const newRep = { id: 'r' + Date.now(), name: userName, init, col, mtg: 20, calls: 50, mine: 25, li: 10, status: 'Active' };
+          newAdmin.reps = [...(newAdmin.reps || []), newRep];
+        }
+        const assignedList = newAdmin.dropdowns?.assigned_to || [];
+        if (!assignedList.some(n => n.toLowerCase() === userName.toLowerCase())) {
+          newAdmin.dropdowns = { ...newAdmin.dropdowns, assigned_to: [...assignedList, userName] };
+        }
+        showToast(`${userName} added as user + rep`, 'ok');
+      } else {
+        showToast('User added', 'ok');
+      }
     }
     setAdmin(newAdmin); setUserModal(null);
   };
