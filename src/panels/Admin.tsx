@@ -184,10 +184,31 @@ export default function Admin() {
                     <td><span style={{fontSize:11,padding:'2px 7px',borderRadius:5,background:u.perms.viewAll?'var(--gl)':'var(--rl)',color:u.perms.viewAll?'#0F6E56':'var(--red)',fontWeight:500}}>{u.perms.viewAll?'All':'Own only'}</span></td>
                     <td>{!isYou?<div style={{display:'flex',gap:4}}>
                       <button className="btn xs ghost" onClick={()=>openEditUser(u)}>Edit</button>
-                      <button className="btn xs" style={{borderColor:'#EF9F27',color:'#854F0B'}} onClick={()=>{const na={...admin,users:admin.users.map(x=>x.id===u.id?{...x,status:x.status==='active'?'inactive':'active' as any}:x)};setAdmin(na);showToast(`${u.name} ${na.users.find(x=>x.id===u.id)?.status}`,'ok');}}>
-                        {u.status==='active'?'Suspend':'Activate'}
+                      <button className="btn xs" style={{borderColor:'#EF9F27',color:'#854F0B'}} onClick={()=>{
+                        const newStatus = u.status==='active'?'inactive':'active';
+                        const repMatch = u.linkedRep || u.name;
+                        const repStatus = newStatus==='active'?'Active':'Inactive';
+                        const na={...admin,
+                          users:admin.users.map(x=>x.id===u.id?{...x,status:newStatus as any}:x),
+                          reps:(admin.reps||[]).map(r=>r.name===repMatch||r.id===u.linkedRep?{...r,status:repStatus}:r),
+                        };
+                        setAdmin(na);
+                        showToast(newStatus==='inactive'
+                          ?`${u.name} suspended — hidden from leaderboard, assign rep, and EOD report`
+                          :`${u.name} reactivated — now visible in all panels`,'ok');
+                      }}>
+                        {u.status==='active'?'Suspend':'Reactivate'}
                       </button>
-                      <button className="btn xs danger" onClick={()=>setConfirmCb({title:'Remove user',body:`Remove <strong>${u.name}</strong>?`,ok:'Remove',cls:'danger',cb:()=>{setAdmin({...admin,users:admin.users.filter(x=>x.id!==u.id)});showToast('User removed','err');}})}>Remove</button>
+                      <button className="btn xs danger" onClick={()=>setConfirmCb({title:`Deactivate ${u.name}?`,body:`<b>What happens:</b><br/>✅ Call history preserved<br/>✅ Reports remain accurate<br/>❌ Hidden from leaderboard, assign rep & EOD<br/>❌ Cannot log in<br/><br/>You can reactivate any time.`,ok:'Deactivate',cls:'danger',cb:()=>{
+                        const repMatch = u.linkedRep || u.name;
+                        const na={...admin,
+                          users:admin.users.map(x=>x.id===u.id?{...x,status:'inactive' as any}:x),
+                          reps:(admin.reps||[]).map(r=>r.name===repMatch||r.id===u.linkedRep?{...r,status:'Inactive'}:r),
+                          dropdowns:{...admin.dropdowns,assigned_to:(admin.dropdowns?.assigned_to||[]).filter(n=>n.toLowerCase()!==repMatch.toLowerCase())},
+                        };
+                        setAdmin(na);
+                        showToast(`${u.name} deactivated — history preserved, hidden from all panels`,'ok');
+                      }})}>Deactivate</button>
                     </div>:<span style={{fontSize:11,color:'var(--t3)'}}>Protected</span>}</td>
                   </tr>;
                 })}</tbody>
