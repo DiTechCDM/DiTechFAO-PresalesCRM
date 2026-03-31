@@ -32,10 +32,10 @@ export default function Login() {
         <button className="login-btn" onClick={doLogin} disabled={logging}>{logging ? 'Signing in…' : 'Sign in'}</button>
         <div className="login-err">{err}</div>
 
-        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.6 }}>
+        {/*  <div style={{ marginTop: 16, fontSize: 11, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.6 }}>
           admin@ditech.com · admin123<br />
           diksha@ditech.com · diksha123
-        </div>
+        </div> */}
       </div>
     </div>
   );
