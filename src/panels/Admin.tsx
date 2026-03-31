@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../store';
 import { uid } from '../lib/utils';
 import { User, FinancialYear } from '../types';
+import * as api from '../lib/api';
 
 type Section = 'users'|'roles'|'fy'|'kpi'|'fields'|'dropdowns'|'reps'|'audit';
 
@@ -20,6 +21,26 @@ export default function Admin() {
   const [userForm, setUserForm] = useState<Partial<User&{password:string}>>({});
   const [kpiEditFY, setKpiEditFY] = useState(admin.active_fy);
   const [confirmCb, setConfirmCb] = useState<{title:string;body:string;ok:string;cls?:string;cb:()=>void}|null>(null);
+
+  // Audit log state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFilter, setAuditFilter] = useState('');
+  const [auditPage, setAuditPage] = useState(0);
+  const AUDIT_PAGE_SIZE = 50;
+
+  const loadAuditLogs = async (page = 0, filter = '') => {
+    setAuditLoading(true);
+    try {
+      const { logs, total } = await api.audit.getLogs({ limit: AUDIT_PAGE_SIZE, offset: page * AUDIT_PAGE_SIZE, action: filter || undefined });
+      setAuditLogs(logs);
+      setAuditTotal(total);
+    } catch (e) { console.error('Failed to load audit logs', e); }
+    setAuditLoading(false);
+  };
+
+  useEffect(() => { if (section === 'audit') loadAuditLogs(auditPage, auditFilter); }, [section, auditPage, auditFilter]);
 
   const openAddUser = () => { setUserForm({role:'rep',status:'active',perms:admin.rolePerms?.rep||{}}); setUserModal({mode:'add'}); };
   const openEditUser = (u:User) => { setUserForm({...u}); setUserModal({mode:'edit',user:u}); };
@@ -415,17 +436,66 @@ export default function Admin() {
           {/* AUDIT */}
           {section==='audit' && (
             <div>
-              <div className="card-title" style={{marginBottom:10}}>Audit log</div>
-              <div className="alert info" style={{fontSize:12}}>ℹ Audit logging is stored locally. Showing demo entries.</div>
-              <div className="card" style={{padding:0}}>
-                {[{user:'Diksha',action:'Meeting set',detail:'Menzies LLP',ts:'Today 11:38',col:'#1D9E75'},{user:'Admin',action:'User added',detail:'Sadichha added as Rep',ts:'Today 09:01',col:'#7F77DD'},{user:'Sadichha',action:'Firm added',detail:'Bishop Fleming',ts:'Today 09:14',col:'#378ADD'},{user:'Diksha',action:'Call logged',detail:'haysmacintyre — No answer',ts:'Yesterday 16:02',col:'#888780'},{user:'Admin',action:'Export',detail:'12 firms exported',ts:'Yesterday 14:55',col:'#E24B4A'},{user:'Sadichha',action:'Stage updated',detail:'PKF Littlejohn → Proposal',ts:'Yesterday 11:10',col:'#7F77DD'}].map((l,i)=>(
-                  <div key={i} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'10px 14px',borderBottom:'.5px solid var(--border)'}}>
-                    <div style={{width:8,height:8,borderRadius:'50%',background:l.col,flexShrink:0,marginTop:4}} />
-                    <div style={{flex:1}}><span style={{fontWeight:500}}>{l.user}</span> — {l.action} <span style={{fontSize:11,padding:'1px 6px',borderRadius:4,background:'var(--grl)',color:'var(--gray)'}}>{l.detail}</span></div>
-                    <div style={{fontSize:11,color:'var(--t3)',whiteSpace:'nowrap'}}>{l.ts}</div>
-                  </div>
-                ))}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div className="card-title">Audit log <span style={{fontSize:11,fontWeight:400,color:'var(--t2)'}}>({auditTotal} total entries)</span></div>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <select value={auditFilter} onChange={e=>{setAuditFilter(e.target.value);setAuditPage(0);}} style={{padding:'5px 9px',border:'.5px solid var(--border2)',borderRadius:'var(--r)',fontSize:12,background:'#fff',outline:'none'}}>
+                    <option value="">All actions</option>
+                    <option value="login">Logins</option>
+                    <option value="firm">Firms</option>
+                    <option value="call">Calls</option>
+                    <option value="reminder">Reminders</option>
+                    <option value="user">Users</option>
+                    <option value="rep">Reps</option>
+                    <option value="stage">Stage changes</option>
+                    <option value="settings">Settings</option>
+                  </select>
+                  <button className="btn sm ghost" onClick={()=>loadAuditLogs(auditPage, auditFilter)}>↻ Refresh</button>
+                </div>
               </div>
+              {auditLoading ? (
+                <div style={{textAlign:'center',padding:40,color:'var(--t2)',fontSize:13}}>Loading audit logs…</div>
+              ) : auditLogs.length === 0 ? (
+                <div className="alert info" style={{fontSize:12}}>No audit log entries found{auditFilter ? ' for this filter' : ''}.</div>
+              ) : (
+                <div className="card" style={{padding:0}}>
+                  {auditLogs.map((l: any) => {
+                    const actionColors: Record<string,string> = { login:'#1D9E75', created:'#378ADD', updated:'#7F77DD', deleted:'#E24B4A', logged:'#EF9F27', stage:'#854F0B', toggled:'#185FA5', bulk:'#A32D2D' };
+                    const colorKey = Object.keys(actionColors).find(k => l.action?.includes(k)) || '';
+                    const col = actionColors[colorKey] || '#888780';
+                    const actionLabel = (l.action || '').replace(/[._]/g, ' ');
+                    const ts = l.created_at ? new Date(l.created_at) : null;
+                    const timeStr = ts ? ts.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+                    return (
+                      <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'10px 14px',borderBottom:'.5px solid var(--border)'}}>
+                        <div style={{width:8,height:8,borderRadius:'50%',background:col,flexShrink:0,marginTop:5}} />
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13}}>
+                            <span style={{fontWeight:600}}>{l.user_name || 'System'}</span>
+                            <span style={{color:'var(--t2)'}}> — </span>
+                            <span style={{fontWeight:500,color:col}}>{actionLabel}</span>
+                            {l.record_name && <span style={{fontSize:11,padding:'1px 6px',marginLeft:6,borderRadius:4,background:'var(--grl)',color:'var(--gray)'}}>{l.record_name}</span>}
+                          </div>
+                          <div style={{fontSize:11,color:'var(--t3)',marginTop:2}}>
+                            <span className={`badge b-${l.user_role||'rep'}`} style={{fontSize:10,marginRight:6}}>{l.user_role || '—'}</span>
+                            {l.table_name && <span style={{marginRight:6}}>Table: {l.table_name}</span>}
+                            {l.ip_address && <span>IP: {l.ip_address}</span>}
+                          </div>
+                        </div>
+                        <div style={{fontSize:11,color:'var(--t3)',whiteSpace:'nowrap',flexShrink:0}}>{timeStr}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Pagination */}
+              {auditTotal > AUDIT_PAGE_SIZE && (
+                <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:10}}>
+                  <button className="btn sm ghost" disabled={auditPage===0} onClick={()=>setAuditPage(p=>p-1)}>← Prev</button>
+                  <span style={{fontSize:12,color:'var(--t2)',padding:'6px 0'}}>Page {auditPage+1} of {Math.ceil(auditTotal/AUDIT_PAGE_SIZE)}</span>
+                  <button className="btn sm ghost" disabled={(auditPage+1)*AUDIT_PAGE_SIZE>=auditTotal} onClick={()=>setAuditPage(p=>p+1)}>Next →</button>
+                </div>
+              )}
             </div>
           )}
 

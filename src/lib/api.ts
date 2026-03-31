@@ -76,3 +76,16 @@ export const admin = {
   updateRolePerms:  (role: string, perms: any)        => request('/admin/role-perms', { method: 'PUT', body: JSON.stringify({ role, perms }) }),
   updateSettings:   (settings: any)                   => request('/admin/settings',   { method: 'PUT', body: JSON.stringify(settings) }),
 };
+
+/* ── Audit ── */
+export const audit = {
+  getLogs: (params?: { limit?: number; offset?: number; action?: string; userId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit)  q.set('limit',  String(params.limit));
+    if (params?.offset) q.set('offset', String(params.offset));
+    if (params?.action) q.set('action', params.action);
+    if (params?.userId) q.set('userId', params.userId);
+    const qs = q.toString();
+    return request<{ logs: any[]; total: number }>(`/audit${qs ? '?' + qs : ''}`);
+  },
+};

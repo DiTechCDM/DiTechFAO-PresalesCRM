@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool from '../db.js';
+import pool, { logAudit, auditCtx } from '../db.js';
 
 const router = Router();
 
@@ -114,6 +114,7 @@ router.post('/', async (req, res) => {
       );
     }
 
+    logAudit({ ...auditCtx(req), action: 'firm.created', tableName: 'firms', recordId: id, recordName: f.name, newValue: { name: f.name, stage: f.stage, assigned_to: f.assigned_to } });
     res.json({ id });
   } catch (err) {
     console.error('POST /firms', err);
@@ -155,6 +156,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    logAudit({ ...auditCtx(req), action: 'firm.updated', tableName: 'firms', recordId: id, recordName: f.name, newValue: { name: f.name, stage: f.stage, assigned_to: f.assigned_to } });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /firms/:id', err);
@@ -166,7 +168,9 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const [rows] = await pool.query('SELECT name FROM firms WHERE id=?', [req.params.id]);
     await pool.query('DELETE FROM firms WHERE id=?', [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'firm.deleted', tableName: 'firms', recordId: req.params.id, recordName: rows[0]?.name });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /firms/:id', err);
@@ -181,6 +185,7 @@ router.post('/bulk-delete', async (req, res) => {
     const { ids } = req.body;
     if (!ids?.length) return res.json({ ok: true });
     await pool.query('DELETE FROM firms WHERE id IN (?)', [ids]);
+    logAudit({ ...auditCtx(req), action: 'firm.bulk_deleted', tableName: 'firms', recordName: `${ids.length} firms deleted` });
     res.json({ ok: true });
   } catch (err) {
     console.error('POST /firms/bulk-delete', err);
@@ -193,6 +198,7 @@ router.post('/bulk-delete', async (req, res) => {
 router.put('/:id/stage', async (req, res) => {
   try {
     await pool.query('UPDATE firms SET stage=?, updated_at=NOW() WHERE id=?', [req.body.stage, req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'firm.stage_changed', tableName: 'firms', recordId: req.params.id, newValue: { stage: req.body.stage } });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
@@ -204,6 +210,7 @@ router.post('/bulk-stage', async (req, res) => {
     const { ids, stage } = req.body;
     if (!ids?.length) return res.json({ ok: true });
     await pool.query('UPDATE firms SET stage=?, updated_at=NOW() WHERE id IN (?)', [stage, ids]);
+    logAudit({ ...auditCtx(req), action: 'firm.bulk_stage', tableName: 'firms', recordName: `${ids.length} firms → ${stage}` });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
@@ -216,6 +223,7 @@ router.post('/bulk-assign', async (req, res) => {
     if (!ids?.length) return res.json({ ok: true });
     const rid = await repId(assigned_to);
     await pool.query('UPDATE firms SET assigned_rep_id=?, updated_at=NOW() WHERE id IN (?)', [rid, ids]);
+    logAudit({ ...auditCtx(req), action: 'firm.bulk_assign', tableName: 'firms', recordName: `${ids.length} firms → ${assigned_to}` });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });

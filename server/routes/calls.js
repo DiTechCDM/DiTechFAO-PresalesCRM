@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool from '../db.js';
+import pool, { logAudit, auditCtx } from '../db.js';
 
 const router = Router();
 
@@ -72,6 +72,7 @@ router.post('/', async (req, res) => {
       await pool.query(`UPDATE firms SET ${sets.join(',')} WHERE id=?`, params);
     }
 
+    logAudit({ ...auditCtx(req), action: 'call.logged', tableName: 'calls', recordId: id, recordName: `${c.rep} → ${c.firm || 'Unknown'}`, newValue: { type: c.type, outcome: c.oc, firm: c.firm, rep: c.rep } });
     res.json({ id });
   } catch (err) {
     console.error('POST /calls', err);
@@ -95,6 +96,7 @@ router.put('/:id', async (req, res) => {
        c.fu||null, c.mtgDate||null, req.params.id]
     );
 
+    logAudit({ ...auditCtx(req), action: 'call.updated', tableName: 'calls', recordId: req.params.id, recordName: `${c.rep} → ${c.firm || 'Unknown'}` });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /calls/:id', err);
@@ -106,7 +108,9 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const [rows] = await pool.query('SELECT firm_name, rep_name FROM calls WHERE id=?', [req.params.id]);
     await pool.query('DELETE FROM calls WHERE id=?', [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'call.deleted', tableName: 'calls', recordId: req.params.id, recordName: rows[0] ? `${rows[0].rep_name} → ${rows[0].firm_name}` : '' });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /calls/:id', err);

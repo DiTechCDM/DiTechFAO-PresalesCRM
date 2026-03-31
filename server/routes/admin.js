@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
-import pool from '../db.js';
+import pool, { logAudit, auditCtx } from '../db.js';
 
 const router = Router();
 
@@ -111,6 +111,7 @@ router.post('/users', async (req, res) => {
       [id, u.name, u.email, hash, u.role||'rep', u.status||'active', rid,
        u.perms ? JSON.stringify(u.perms) : null]
     );
+    logAudit({ ...auditCtx(req), action: 'user.created', tableName: 'users', recordId: id, recordName: u.name, newValue: { name: u.name, email: u.email, role: u.role } });
     res.json({ id });
   } catch (err) {
     console.error('POST /admin/users', err);
@@ -131,6 +132,7 @@ router.put('/users/:id', async (req, res) => {
     if (u.password) { sets.push('password_hash=?'); params.push(await bcrypt.hash(u.password, 10)); }
     params.push(req.params.id);
     await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=?`, params);
+    logAudit({ ...auditCtx(req), action: 'user.updated', tableName: 'users', recordId: req.params.id, recordName: u.name, newValue: { name: u.name, email: u.email, role: u.role, status: u.status } });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/users/:id', err);
@@ -140,7 +142,9 @@ router.put('/users/:id', async (req, res) => {
 
 router.delete('/users/:id', async (req, res) => {
   try {
+    const [rows] = await pool.query('SELECT name FROM users WHERE id=?', [req.params.id]);
     await pool.query('DELETE FROM users WHERE id=?', [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'user.deleted', tableName: 'users', recordId: req.params.id, recordName: rows[0]?.name });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /admin/users/:id', err);
@@ -160,6 +164,7 @@ router.post('/reps', async (req, res) => {
       [id, r.name, r.init||r.name.substring(0,2).toUpperCase(), r.col||'#1D9E75',
        r.calls||50, r.mtg||20, r.li||10, r.mine||25, r.status||'Active']
     );
+    logAudit({ ...auditCtx(req), action: 'rep.created', tableName: 'reps', recordId: id, recordName: r.name });
     res.json({ id });
   } catch (err) {
     console.error('POST /admin/reps', err);
@@ -175,6 +180,7 @@ router.put('/reps/:id', async (req, res) => {
         linkedin_per_day=?,mine_per_day=?,status=? WHERE id=?`,
       [r.name, r.init, r.col, r.calls, r.mtg, r.li, r.mine, r.status, req.params.id]
     );
+    logAudit({ ...auditCtx(req), action: 'rep.updated', tableName: 'reps', recordId: req.params.id, recordName: r.name });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/reps/:id', err);
@@ -184,7 +190,9 @@ router.put('/reps/:id', async (req, res) => {
 
 router.delete('/reps/:id', async (req, res) => {
   try {
+    const [rows] = await pool.query('SELECT name FROM reps WHERE id=?', [req.params.id]);
     await pool.query('DELETE FROM reps WHERE id=?', [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'rep.deleted', tableName: 'reps', recordId: req.params.id, recordName: rows[0]?.name });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /admin/reps/:id', err);
@@ -213,6 +221,7 @@ router.post('/financial-years', async (req, res) => {
        k.leads_month, k.qual_rate, k.engage_rate, k.close_rate,
        k.q1_leads, k.q2_leads, k.q3_leads, k.q4_leads, k.rev_fte, k.rev_payg]
     );
+    logAudit({ ...auditCtx(req), action: 'fy.created', tableName: 'financial_years', recordId: id, recordName: fy.label });
     res.json({ id });
   } catch (err) {
     console.error('POST /admin/financial-years', err);
@@ -265,6 +274,7 @@ router.put('/financial-years/:id/activate', async (req, res) => {
   try {
     await pool.query("UPDATE financial_years SET status='inactive'");
     await pool.query("UPDATE financial_years SET status='active' WHERE id=?", [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'fy.activated', tableName: 'financial_years', recordId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/financial-years/:id/activate', err);
@@ -283,6 +293,7 @@ router.put('/dropdowns', async (req, res) => {
        ON DUPLICATE KEY UPDATE value=?`,
       [key, val, val]
     );
+    logAudit({ ...auditCtx(req), action: 'dropdown.updated', tableName: 'admin_settings', recordName: key });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/dropdowns', err);
@@ -301,6 +312,7 @@ router.put('/role-perms', async (req, res) => {
        ON DUPLICATE KEY UPDATE value=?`,
       [role, val, val]
     );
+    logAudit({ ...auditCtx(req), action: 'role_perms.updated', tableName: 'admin_settings', recordName: role });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/role-perms', err);
@@ -320,6 +332,7 @@ router.put('/settings', async (req, res) => {
         [key, val, val]
       );
     }
+    logAudit({ ...auditCtx(req), action: 'settings.updated', tableName: 'admin_settings', newValue: req.body });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /admin/settings', err);

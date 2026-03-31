@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import pool from '../db.js';
+import pool, { logAudit } from '../db.js';
 
 const router = Router();
 
@@ -38,7 +38,15 @@ router.post('/login', async (req, res) => {
 
     await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, name: user.name, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+
+    // Audit: login
+    logAudit({
+      userId: user.id, userName: user.name, userRole: user.role,
+      action: 'user.login', tableName: 'users', recordId: user.id, recordName: user.name,
+      ip: req.headers['x-forwarded-for'] || req.ip,
+      userAgent: req.headers['user-agent'],
+    });
 
     res.json({
       token,

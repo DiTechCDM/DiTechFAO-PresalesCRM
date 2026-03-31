@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool from '../db.js';
+import pool, { logAudit, auditCtx } from '../db.js';
 
 const router = Router();
 
@@ -66,6 +66,7 @@ router.post('/', async (req, res) => {
        r.dueDate, r.dueTime||null, r.done ? 1 : 0, r.createdFrom||'manual', createdAt]
     );
 
+    logAudit({ ...auditCtx(req), action: 'reminder.created', tableName: 'reminders', recordId: id, recordName: r.title });
     res.json({ id });
   } catch (err) {
     console.error('POST /reminders', err);
@@ -88,6 +89,7 @@ router.put('/:id', async (req, res) => {
        r.dueDate, r.dueTime||null, r.done ? 1 : 0, req.params.id]
     );
 
+    logAudit({ ...auditCtx(req), action: 'reminder.updated', tableName: 'reminders', recordId: req.params.id, recordName: r.title });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /reminders/:id', err);
@@ -105,6 +107,7 @@ router.put('/:id/toggle', async (req, res) => {
        WHERE id=?`,
       [req.params.id]
     );
+    logAudit({ ...auditCtx(req), action: 'reminder.toggled', tableName: 'reminders', recordId: req.params.id });
     res.json({ ok: true });
   } catch (err) {
     console.error('PUT /reminders/:id/toggle', err);
@@ -116,7 +119,9 @@ router.put('/:id/toggle', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const [rows] = await pool.query('SELECT title FROM reminders WHERE id=?', [req.params.id]);
     await pool.query('DELETE FROM reminders WHERE id=?', [req.params.id]);
+    logAudit({ ...auditCtx(req), action: 'reminder.deleted', tableName: 'reminders', recordId: req.params.id, recordName: rows[0]?.title });
     res.json({ ok: true });
   } catch (err) {
     console.error('DELETE /reminders/:id', err);
