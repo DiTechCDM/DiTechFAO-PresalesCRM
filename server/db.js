@@ -34,13 +34,13 @@ export function todayIST() {
 export async function logAudit({ userId, userName, userRole, action, tableName, recordId, recordName, oldValue, newValue, ip, userAgent }) {
   try {
     await pool.query(
-      `INSERT INTO audit_log (user_id, user_name, user_role, action, table_name, record_id, record_name, old_value, new_value, ip_address, user_agent)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      `INSERT INTO audit_log (user_id, user_name, user_role, action, table_name, record_id, record_name, old_value, new_value, ip_address, user_agent, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [userId || null, userName || null, userRole || null, action,
        tableName || null, recordId || null, recordName || null,
        oldValue ? JSON.stringify(oldValue) : null,
        newValue ? JSON.stringify(newValue) : null,
-       ip || null, userAgent || null]
+       ip || null, userAgent || null, nowIST()]
     );
   } catch (err) {
     console.error('Audit log error:', err.message);
