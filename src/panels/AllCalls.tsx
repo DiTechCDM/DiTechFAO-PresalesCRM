@@ -9,7 +9,7 @@ export default function AllCalls() {
   const [ocF, setOcF] = useState('');
   const [typeF, setTypeF] = useState('');
   const [rangePreset, setRangePreset] = useState('7d');
-  const [rangeFrom, setRangeFrom] = useState(() => { const d=new Date(); d.setDate(d.getDate()-6); return d.toISOString().split('T')[0]; });
+  const [rangeFrom, setRangeFrom] = useState(() => { const d=new Date(); d.setDate(d.getDate()-6); return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' }); });
   const [rangeTo, setRangeTo] = useState(TODAY);
   const [page, setPage] = useState(1);
   const perPage = 50;
@@ -19,9 +19,9 @@ export default function AllCalls() {
     setRangePreset(p);
     const t = new Date(); t.setHours(0,0,0,0);
     if (p === 'today') { setRangeFrom(TODAY); setRangeTo(TODAY); }
-    else if (p === 'yesterday') { const y=new Date(t); y.setDate(y.getDate()-1); const s=y.toISOString().split('T')[0]; setRangeFrom(s); setRangeTo(s); }
-    else if (p === '7d') { const f=new Date(t); f.setDate(f.getDate()-6); setRangeFrom(f.toISOString().split('T')[0]); setRangeTo(TODAY); }
-    else if (p === '30d') { const f=new Date(t); f.setDate(f.getDate()-29); setRangeFrom(f.toISOString().split('T')[0]); setRangeTo(TODAY); }
+    else if (p === 'yesterday') { const y=new Date(t); y.setDate(y.getDate()-1); const s=y.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' }); setRangeFrom(s); setRangeTo(s); }
+    else if (p === '7d') { const f=new Date(t); f.setDate(f.getDate()-6); setRangeFrom(f.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' })); setRangeTo(TODAY); }
+    else if (p === '30d') { const f=new Date(t); f.setDate(f.getDate()-29); setRangeFrom(f.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' })); setRangeTo(TODAY); }
     else if (p === 'month') { setRangeFrom(MONTH_START); setRangeTo(TODAY); }
     setPage(1);
   };

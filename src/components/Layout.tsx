@@ -34,7 +34,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
   const afy = admin.financial_years?.find((f: any) => f.id === admin.active_fy) || admin.financial_years?.[0];
 
   // Overdue count for sidebar badge
-  const TODAY = new Date().toISOString().split('T')[0];
+  const TODAY = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
   const rep = currentUser?.linkedRep || currentUser?.name || '';
   const myReminders = isAdmin ? reminders : reminders.filter(r => r.rep === rep);
   const overdueCount = myReminders.filter(r => !r.done && r.dueDate < TODAY).length;

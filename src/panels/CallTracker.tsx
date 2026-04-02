@@ -40,7 +40,7 @@ function EditCallModal({ call, firms, onSave, onClose }: {
           <div style={{padding:'8px 12px',background:'var(--brand-light)',borderRadius:'var(--r)',fontSize:12,color:'var(--brand)',display:'flex',gap:16}}>
             <span><strong>{call.firm}</strong></span>
             <span style={{color:'var(--t2)'}}>·</span>
-            <span style={{color:'var(--t2)'}}>Logged: {new Date(call.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+            <span style={{color:'var(--t2)'}}>Logged: {new Date(call.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'})}</span>
             <span style={{color:'var(--t2)'}}>· Rep: {call.rep}</span>
           </div>
 
@@ -181,7 +181,7 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
       stage: stage || undefined,
       notes, fu: followUp || undefined,
       mtgDate: mtgDate || undefined,
-      ts: new Date().toISOString()
+      ts: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).replace(' ', 'T')
     };
     setCalls([newCall, ...calls]);
     // Update firm last_contact, stage, follow_up

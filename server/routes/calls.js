@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool, { logAudit, auditCtx } from '../db.js';
+import pool, { logAudit, auditCtx, nowIST } from '../db.js';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ function mapCall(row) {
     notes: row.notes || '',
     fu: row.follow_up_date || '',
     mtgDate: row.meeting_date || '',
-    ts: row.logged_at ? row.logged_at.replace(' ', 'T') + (row.logged_at.includes('T') ? '' : 'Z') : '',
+    ts: row.logged_at ? row.logged_at.replace(' ', 'T') + (row.logged_at.includes('T') ? '' : '+05:30') : '',
   };
 }
 
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
     const rid = await repId(c.rep);
 
     // Parse ts — may be ISO string; store as DATETIME
-    let loggedAt = c.ts || new Date().toISOString();
+    let loggedAt = c.ts || nowIST();
     // Convert ISO → MySQL-friendly datetime
     loggedAt = loggedAt.replace('T', ' ').replace('Z', '').split('.')[0];
 

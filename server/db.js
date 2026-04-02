@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'ditech_fao',
   waitForConnections: true,
   connectionLimit: 10,
-  timezone: '+00:00',
+  timezone: '+05:30',
   dateStrings: true,
 });
 
@@ -19,6 +19,16 @@ const pool = mysql.createPool({
 pool.getConnection()
   .then(conn => { console.log('✓ MySQL connected to', process.env.DB_NAME); conn.release(); })
   .catch(err => console.error('✗ MySQL connection FAILED:', err.message, '| Host:', process.env.DB_HOST, '| DB:', process.env.DB_NAME, '| User:', process.env.DB_USER));
+
+/** Get current datetime in IST format for MySQL (YYYY-MM-DD HH:MM:SS) */
+export function nowIST() {
+  return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+}
+
+/** Get current date in IST format (YYYY-MM-DD) */
+export function todayIST() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
+}
 
 /** Log an action to the audit_log table */
 export async function logAudit({ userId, userName, userRole, action, tableName, recordId, recordName, oldValue, newValue, ip, userAgent }) {

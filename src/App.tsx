@@ -73,7 +73,7 @@ function Main() {
       contact: drContact, type: drType, oc: drOC,
       stage: drStage || undefined, notes: drNotes,
       fu: drFU || undefined, mtgDate: drMtg || undefined,
-      ts: new Date().toISOString(),
+      ts: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).replace(' ', 'T'),
     };
     setCalls([newCall, ...calls]);
     setFirms(firms.map(x => x.id === drawerFirmId ? {
@@ -119,8 +119,7 @@ function Main() {
   // Compute date range for selected period
   const getEodRange = () => {
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const fmt = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
     const today = fmt(now);
     if (eodPeriod === 'today') return { from: today, to: today, label: 'Today', days: 1 };
     if (eodPeriod === 'week') {
@@ -387,7 +386,7 @@ function Main() {
                               {isToday ? 'Today' : fmtDate(c.ts)}
                             </div>
                             <div style={{ fontSize: 10, color: 'var(--t3)' }}>
-                              {new Date(c.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(c.ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
                             </div>
                           </div>
                         </div>

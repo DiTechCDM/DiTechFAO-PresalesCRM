@@ -506,7 +506,7 @@ export default function Admin() {
                     const col = actionColors[colorKey] || '#888780';
                     const actionLabel = (l.action || '').replace(/[._]/g, ' ');
                     const ts = l.created_at ? new Date(l.created_at) : null;
-                    const timeStr = ts ? ts.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+                    const timeStr = ts ? ts.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Asia/Kolkata' }) : '';
                     return (
                       <div key={l.id} style={{display:'flex',alignItems:'flex-start',gap:10,padding:'10px 14px',borderBottom:'.5px solid var(--border)'}}>
                         <div style={{width:8,height:8,borderRadius:'50%',background:col,flexShrink:0,marginTop:5}} />

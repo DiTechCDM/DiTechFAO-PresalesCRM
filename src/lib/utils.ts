@@ -1,12 +1,13 @@
 export function uid() { return 'x' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4); }
 export function esc(s: any) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-export function fmtDate(d?: string) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }); }
-export function fmtTime(ts: string) { return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
-export function fmtFull(ts: string) { return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }); }
+const IST = 'Asia/Kolkata';
+export function fmtDate(d?: string) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: IST }); }
+export function fmtTime(ts: string) { return new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: IST }); }
+export function fmtFull(ts: string) { return new Date(ts).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: IST }); }
 export function fmtGBP(n?: number) { return '£' + (n || 0).toLocaleString(); }
-export const TODAY = new Date().toISOString().split('T')[0];
+export const TODAY = new Date().toLocaleDateString('sv-SE', { timeZone: IST });
 export const NOW = new Date();
-export const MONTH_START = new Date(NOW.getFullYear(), NOW.getMonth(), 1).toISOString().split('T')[0];
+export const MONTH_START = TODAY.slice(0, 8) + '01';
 
 export const OC_LABELS: Record<string, string> = { mtg: 'Meeting set', cb: 'Callback', in: 'Interested', na: 'No answer', gk: 'Gatekeeper', ni: 'Not interested', vm: 'Voicemail' };
 export const OC_COLORS: Record<string, string> = { mtg: '#1D9E75', cb: '#EF9F27', in: '#378ADD', na: '#888780', gk: '#85B7EB', ni: '#A32D2D', vm: '#7F77DD' };

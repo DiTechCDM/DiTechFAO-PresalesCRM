@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool, { logAudit, auditCtx } from '../db.js';
+import pool, { logAudit, auditCtx, nowIST } from '../db.js';
 
 const router = Router();
 
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     const id = r.id || uuid();
     const rid = await repId(r.rep);
 
-    let createdAt = r.createdAt || new Date().toISOString();
+    let createdAt = r.createdAt || nowIST();
     createdAt = createdAt.replace('T', ' ').replace('Z', '').split('.')[0];
 
     await pool.query(

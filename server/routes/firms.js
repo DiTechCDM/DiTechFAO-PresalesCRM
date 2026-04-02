@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
-import pool, { logAudit, auditCtx } from '../db.js';
+import pool, { logAudit, auditCtx, todayIST } from '../db.js';
 
 const router = Router();
 
@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
        f.main_phone||null, f.software||null, f.source||null, f.stage||'Lead', rid,
        f.pricing_model||null, f.service_interest||null, f.win_amount||0,
        f.last_contact||null, f.follow_up||null, f.notes||null, f.added_by||null,
-       f.added_date || new Date().toISOString().split('T')[0]]
+       f.added_date || todayIST()]
     );
 
     // contacts
