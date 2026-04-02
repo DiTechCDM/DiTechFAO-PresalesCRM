@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-import pool from './db.js';
+import pool, { nowIST } from './db.js';
 import { verifyToken } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import firmRoutes from './routes/firms.js';
@@ -43,8 +43,8 @@ app.get('/api/health', async (_req, res) => {
   } catch (e) { status.db = false; status.dbError = e.message; }
   try {
     await pool.query(
-      `INSERT INTO audit_log (user_name, user_role, action, table_name, record_name) VALUES (?,?,?,?,?)`,
-      ['system', 'system', 'health.check', 'audit_log', 'Health check test']
+      `INSERT INTO audit_log (user_name, user_role, action, table_name, record_name, created_at) VALUES (?,?,?,?,?,?)`,
+      ['system', 'system', 'health.check', 'audit_log', 'Health check test', nowIST()]
     );
     status.audit = true;
   } catch (e) { status.audit = false; status.auditError = e.message; }
