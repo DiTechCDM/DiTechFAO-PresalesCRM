@@ -23,6 +23,8 @@ export default function Reminders() {
 
   const [filter, setFilter]         = useState<Filter>('all');
   const [typeFilter, setTypeFilter] = useState('');
+  const [dateFrom, setDateFrom]     = useState('');
+  const [dateTo, setDateTo]         = useState('');
   const [modal, setModal]           = useState<'add'|'edit'|null>(null);
   const [form, setForm]             = useState<Partial<Reminder>>(BLANK);
   const [editId, setEditId]         = useState<string|null>(null);
@@ -47,6 +49,8 @@ export default function Reminders() {
     const res = scoped
       .filter(r => {
         if (typeFilter && r.type !== typeFilter) return false;
+        if (dateFrom && r.dueDate < dateFrom) return false;
+        if (dateTo && r.dueDate > dateTo) return false;
         if (filter === 'today')    return !r.done && r.dueDate === todayStr;
         if (filter === 'overdue')  return !r.done && r.dueDate < todayStr;
         if (filter === 'upcoming') return !r.done && r.dueDate > todayStr;
@@ -58,7 +62,7 @@ export default function Reminders() {
         return a.dueDate.localeCompare(b.dueDate) || (a.dueTime||'').localeCompare(b.dueTime||'');
       });
     return res;
-  }, [scoped, filter, typeFilter, todayStr]);
+  }, [scoped, filter, typeFilter, dateFrom, dateTo, todayStr]);
 
   const overdueCount = scoped.filter(r => !r.done && r.dueDate < todayStr).length;
   const todayCount   = scoped.filter(r => !r.done && r.dueDate === todayStr).length;
@@ -167,6 +171,19 @@ export default function Reminders() {
           <option value="">All types</option>
           {Object.entries(TYPE_META).map(([k,v]) => <option key={k} value={k}>{v.emoji} {v.label}</option>)}
         </select>
+        <div style={{ width:1, height:20, background:'var(--border)', flexShrink:0 }} />
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:11, color:'var(--t2)', fontWeight:600 }}>From:</span>
+          <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+            style={{ padding:'4px 8px', border:'.5px solid var(--border2)', borderRadius:'var(--r)', fontSize:12, background:'#fff', outline:'none' }} />
+          <span style={{ fontSize:11, color:'var(--t2)', fontWeight:600 }}>To:</span>
+          <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }}
+            style={{ padding:'4px 8px', border:'.5px solid var(--border2)', borderRadius:'var(--r)', fontSize:12, background:'#fff', outline:'none' }} />
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
+              style={{ fontSize:11, color:'var(--red)', background:'none', border:'none', cursor:'pointer', padding:'2px 4px' }}>✕ Clear</button>
+          )}
+        </div>
         <span style={{ fontSize:11, color:'var(--t3)', marginLeft:'auto' }}>
           {filtered.length} item{filtered.length!==1?'s':''}
           {totalPages > 1 ? ` · page ${safePage}/${totalPages}` : ''}
