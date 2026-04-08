@@ -189,6 +189,7 @@ function Main() {
     const nVM = rc.filter(c => c.oc === 'vm').length;
     const nCB = rc.filter(c => c.oc === 'cb').length;
     const nIN = rc.filter(c => c.oc === 'in').length;
+    const nGK = rc.filter(c => c.oc === 'gk').length;
     const connRate = nC > 0 ? Math.round((nC - nN - nVM) / nC * 100) : 0;
 
     return {
@@ -196,7 +197,7 @@ function Main() {
       callTarget: Math.round(callTarget),
       mtgTarget: Math.round(mtgTarget),
       liTarget: Math.round(liTarget),
-      nC, nL, nM, nI, nN, nVM, nCB, nIN, connRate,
+      nC, nL, nM, nI, nN, nVM, nCB, nIN, nGK, connRate,
       total: rc.length,
     };
   });
@@ -211,12 +212,12 @@ function Main() {
   // CSV export
   const exportEodCSV = () => {
     const rows = [
-      ['Rep','Period','Calls','Call Target','Calls %','LinkedIn','Mtg Target','Meetings Set','LI Target','Connect Rate %','No Answer','Voicemail','Callback','Interested','Not Interested'],
+      ['Rep','Period','Calls','Call Target','Calls %','LinkedIn','Mtg Target','Meetings Set','LI Target','Connect Rate %','No Answer','Voicemail','Callback','Interested','Not Interested','Gatekeeper'],
       ...eodRows.map(r => [
         r.r, eodRange.label,
         r.nC, r.callTarget, Math.round(r.nC/r.callTarget*100),
         r.nL, r.liTarget, r.nM, r.mtgTarget,
-        r.connRate, r.nN, r.nVM, r.nCB, r.nIN, r.nI,
+        r.connRate, r.nN, r.nVM, r.nCB, r.nIN, r.nI, r.nGK,
       ])
     ];
     const csv = rows.map(row => row.map(v => `"${v}"`).join(',')).join('\r\n');
@@ -608,7 +609,7 @@ function Main() {
                     </div>
 
                     {/* Outcome breakdown tiles */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6, textAlign: 'center' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, textAlign: 'center' }}>
                       {([
                         ['Meeting set', r.nM, '#1D9E75'],
                         ['Callback', r.nCB, '#EF9F27'],
@@ -616,6 +617,7 @@ function Main() {
                         ['No answer', r.nN, '#888'],
                         ['Voicemail', r.nVM, '#7F77DD'],
                         ['Not int.', r.nI, '#A32D2D'],
+                        ['Gatekeeper', r.nGK, '#EF6C00'],
                       ] as [string, number, string][]).map(([l, v, col]) => (
                         <div key={l} style={{ background: 'var(--s2)', padding: '8px 4px', borderRadius: 6, border: '.5px solid var(--border)' }}>
                           <div style={{ fontSize: 18, fontWeight: 700, color: v > 0 ? col : 'var(--t3)' }}>{v}</div>
