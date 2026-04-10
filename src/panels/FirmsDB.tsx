@@ -70,15 +70,71 @@ export default function FirmsDB({ onLogCall }: { onLogCall?: (firmId: string) =>
   };
 
   const exportData = () => {
-    const headers = ['Firm Name','Companies House','City','Region','Size','Contact','Phone','Email','Software','Source','Stage','Assigned','Win Amount £','Last Contact','Follow-up','Notes'];
-    const rows = filtered.map(f => ({
-      'Firm Name': f.name, 'Companies House': f.ch_number ?? '', 'City': f.city ?? '',
-      'Region': f.region ?? '', 'Size': f.size ?? '', 'Contact': f.contact_name ?? '',
-      'Phone': f.phone ?? '', 'Email': f.email ?? '', 'Software': f.software ?? '',
-      'Source': f.source ?? '', 'Stage': f.stage, 'Assigned': f.assigned_to ?? '',
-      'Win Amount £': f.win_amount || '', 'Last Contact': f.last_contact ?? '',
-      'Follow-up': f.follow_up ?? '', 'Notes': f.notes ?? '',
-    }));
+    // Determine max contacts across filtered firms
+    const maxContacts = Math.max(1, ...filtered.map(f => (f.contacts || []).length));
+
+    // Build call notes per firm (only calls that have notes)
+    const firmCallNotes: Record<string, typeof calls> = {};
+    for (const c of calls) {
+      if (c.firmId && c.notes?.trim()) {
+        (firmCallNotes[c.firmId] ||= []).push(c);
+      }
+    }
+    // Sort each firm's notes newest-first so Call Notes 1 = most recent
+    for (const fid of Object.keys(firmCallNotes)) {
+      firmCallNotes[fid].sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+    }
+    const maxNotes = Math.max(0, ...filtered.map(f => (firmCallNotes[f.id] || []).length));
+
+    // Base headers
+    const baseHeaders = ['Firm Name','Companies House','City','Region','Size','Main Phone','Software','Source','Stage','Assigned','Win Amount £','Last Contact','Follow-up','Firm Notes'];
+
+    // Dynamic contact headers
+    const contactHeaders: string[] = [];
+    for (let i = 1; i <= maxContacts; i++) {
+      contactHeaders.push(`Contact ${i} Name`,`Contact ${i} Title`,`Contact ${i} Phone`,`Contact ${i} Email`,`Contact ${i} LinkedIn`,`Contact ${i} Notes`);
+    }
+
+    // Dynamic call notes headers
+    const noteHeaders: string[] = [];
+    for (let i = 1; i <= maxNotes; i++) {
+      noteHeaders.push(`Call Notes ${i}`);
+    }
+
+    const headers = [...baseHeaders, ...contactHeaders, ...noteHeaders];
+
+    const rows = filtered.map(f => {
+      const row: Record<string, unknown> = {
+        'Firm Name': f.name, 'Companies House': f.ch_number ?? '', 'City': f.city ?? '',
+        'Region': f.region ?? '', 'Size': f.size ?? '', 'Main Phone': f.main_phone ?? '',
+        'Software': f.software ?? '', 'Source': f.source ?? '', 'Stage': f.stage,
+        'Assigned': f.assigned_to ?? '', 'Win Amount £': f.win_amount || '',
+        'Last Contact': f.last_contact ?? '', 'Follow-up': f.follow_up ?? '',
+        'Firm Notes': f.notes ?? '',
+      };
+
+      // Contact columns
+      const cts = f.contacts || [];
+      for (let i = 1; i <= maxContacts; i++) {
+        const c = cts[i - 1];
+        row[`Contact ${i} Name`] = c?.name || '';
+        row[`Contact ${i} Title`] = c?.title || '';
+        row[`Contact ${i} Phone`] = c?.phone || '';
+        row[`Contact ${i} Email`] = c?.email || '';
+        row[`Contact ${i} LinkedIn`] = c?.linkedin || '';
+        row[`Contact ${i} Notes`] = c?.notes || '';
+      }
+
+      // Call notes columns (date + note text)
+      const fNotes = firmCallNotes[f.id] || [];
+      for (let i = 1; i <= maxNotes; i++) {
+        const n = fNotes[i - 1];
+        row[`Call Notes ${i}`] = n ? `[${(n.ts || '').split('T')[0]}] ${n.notes}` : '';
+      }
+
+      return row;
+    });
+
     exportToXlsx(headers, rows, `DiTechFAO_Firms_${TODAY}.xlsx`);
     showToast(`Exported ${rows.length} firms`, 'ok');
   };
