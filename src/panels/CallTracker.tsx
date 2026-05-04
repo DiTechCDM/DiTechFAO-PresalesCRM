@@ -150,7 +150,13 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
   // Filter calls
   const repFilter = isRep() ? currentUser?.linkedRep || '' : (selRep === 'all' ? '' : selRep);
   const allCalls = scopeCalls(calls);
-  const todayCalls = allCalls.filter(c => c.ts.startsWith(TODAY) && (!repFilter || c.rep === repFilter));
+  const allRepNames = new Set(activeReps.map(r => r.name));
+  const useAllRepAggregate = canViewAll && !isRep() && selRep === 'all';
+  const todayCalls = allCalls.filter(c => {
+    if (!c.ts.startsWith(TODAY)) return false;
+    if (useAllRepAggregate) return allRepNames.has(c.rep);
+    return !repFilter || c.rep === repFilter;
+  });
   const shownCalls = ocFilter ? todayCalls.filter(c => c.oc === ocFilter) : todayCalls;
 
   // KPI metrics
@@ -161,10 +167,22 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
   const nConn = todayCalls.filter(c => !['na','vm','gk'].includes(c.oc)).length;
   const nNI = todayCalls.filter(c => c.oc === 'ni').length;
   const connRate = nCalls > 0 ? Math.round(nConn / nCalls * 100) : 0;
-  const dailyMtgTarget = Math.ceil((kpi.meetings_month || 20) / 22);
+  const allCallsTarget = activeReps.reduce((s, r) => s + (r.calls || kpi.calls_day || 0), 0);
+  const allLiTarget = activeReps.reduce((s, r) => s + (r.li || kpi.li_day || 10), 0);
+  const allDailyMtgTarget = activeReps.reduce((s, r) => s + Math.ceil((r.mtg || kpi.meetings_month || 20) / 22), 0);
+  const dailyCallsTarget = useAllRepAggregate ? allCallsTarget : (kpi.calls_day || 0);
+  const dailyLiTarget = useAllRepAggregate ? allLiTarget : (kpi.li_day || 10);
+  const dailyMtgTarget = useAllRepAggregate ? allDailyMtgTarget : Math.ceil((kpi.meetings_month || 20) / 22);
 
   // Monthly meetings
-  const monthMtgs = allCalls.filter(c => c.oc === 'mtg' && c.ts >= MONTH_START && (!repFilter || c.rep === repFilter)).length;
+  const monthMtgs = allCalls.filter(c => {
+    if (!(c.oc === 'mtg' && c.ts >= MONTH_START)) return false;
+    if (useAllRepAggregate) return allRepNames.has(c.rep);
+    return !repFilter || c.rep === repFilter;
+  }).length;
+  const monthlyMtgTarget = useAllRepAggregate
+    ? activeReps.reduce((s, r) => s + (r.mtg || kpi.meetings_month || 20), 0)
+    : (kpi.meetings_month || 20);
   const daysInM = new Date(NOW.getFullYear(), NOW.getMonth() + 1, 0).getDate();
   const dayOfM = NOW.getDate();
   const proj = dayOfM > 0 ? Math.round(monthMtgs / dayOfM * daysInM) : 0;
@@ -392,8 +410,8 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
           {/* 5 stat chips */}
           <div className="sg sg5" style={{marginBottom:10}}>
             {[
-              {l:'Calls',v:nCalls,t:kpi.calls_day,col:'var(--text)'},
-              {l:'LinkedIn',v:nLI,t:kpi.li_day||10,col:'#7F77DD'},
+              {l:'Calls',v:nCalls,t:dailyCallsTarget,col:'var(--text)'},
+              {l:'LinkedIn',v:nLI,t:dailyLiTarget,col:'#7F77DD'},
               {l:'Meetings today',v:nMtg,t:dailyMtgTarget,col:'#1D9E75'},
               {l:'Connect rate',v:`${connRate}%`,t:null,col:connRate>=50?'#1D9E75':'#E24B4A',sub:`${nConn} of ${nCalls} connected`},
               {l:'Not interested',v:nNI,t:null,col:'#A32D2D',sub:'Disqualified'},
@@ -414,7 +432,7 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
           {/* Daily progress */}
           <div className="card">
             <div className="card-hd" style={{marginBottom:10}}><div className="card-title">Daily progress</div></div>
-            {[{l:'Calls',v:nCalls,t:kpi.calls_day},{l:'LinkedIn',v:nLI,t:kpi.li_day||10},{l:'Meetings today',v:nMtg,t:dailyMtgTarget}].map(x=>{
+            {[{l:'Calls',v:nCalls,t:dailyCallsTarget},{l:'LinkedIn',v:nLI,t:dailyLiTarget},{l:'Meetings today',v:nMtg,t:dailyMtgTarget}].map(x=>{
               const {p,bc}=pctBar(x.v,x.t);
               return (
                 <div key={x.l} style={{marginBottom:14}}>
@@ -432,14 +450,14 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
           <div className="card">
             <div className="card-hd" style={{marginBottom:10}}><div className="card-title">Meetings this month</div></div>
             {(()=>{
-              const pctM=Math.min(100,Math.round(monthMtgs/(kpi.meetings_month||20)*100));
+              const pctM=Math.min(100,Math.round(monthMtgs/(monthlyMtgTarget||1)*100));
               const mc=pctM>=100?'#1D9E75':pctM>=60?'#EF9F27':'#E24B4A';
               return (<>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                   <span style={{fontSize:28,fontWeight:700,color:mc,lineHeight:1}}>{monthMtgs}</span>
                   <div style={{textAlign:'right'}}>
-                    <div style={{fontSize:12,color:'var(--t2)'}}>/ {kpi.meetings_month} target</div>
-                    <div style={{fontSize:11,color:proj>=(kpi.meetings_month||20)?'var(--green)':'var(--amber)',marginTop:2}}>Projected: {proj} by month end</div>
+                    <div style={{fontSize:12,color:'var(--t2)'}}>/ {monthlyMtgTarget} target</div>
+                    <div style={{fontSize:11,color:proj>=monthlyMtgTarget?'var(--green)':'var(--amber)',marginTop:2}}>Projected: {proj} by month end</div>
                   </div>
                 </div>
                 <div className="mpb" style={{height:8}}><div className="mpf" style={{width:`${pctM}%`,background:mc}} /></div>
