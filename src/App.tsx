@@ -25,7 +25,7 @@ function Main() {
   const [drMtg, setDrMtg] = useState('');
   const [eodOpen, setEodOpen] = useState(false);
   const [eodPage, setEodPage] = useState(1);
-  const [eodPeriod, setEodPeriod] = useState<'today'|'week'|'month'|'quarter'|'custom'>('today');
+  const [eodPeriod, setEodPeriod] = useState<'today'|'yesterday'|'week'|'month'|'quarter'|'custom'>('today');
   const [eodFrom, setEodFrom] = useState('');
   const [eodTo, setEodTo] = useState('');
   const EOD_PER_PAGE = 3;
@@ -122,6 +122,12 @@ function Main() {
     const fmt = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
     const today = fmt(now);
     if (eodPeriod === 'today') return { from: today, to: today, label: 'Today', days: 1 };
+    if (eodPeriod === 'yesterday') {
+      const y = new Date(now);
+      y.setDate(now.getDate() - 1);
+      const yesterday = fmt(y);
+      return { from: yesterday, to: yesterday, label: 'Yesterday', days: 1 };
+    }
     if (eodPeriod === 'week') {
       const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
       return { from: fmt(mon), to: today, label: 'This week', days: (now.getDay()+6)%7 + 1 };
@@ -153,7 +159,7 @@ function Main() {
       return c.rep === r.name && d >= eodRange.from && d <= eodRange.to;
     });
     // Scale targets to period
-    const callTarget = eodPeriod === 'today'
+    const callTarget = (eodPeriod === 'today' || eodPeriod === 'yesterday')
       ? (r.calls || kpi.calls_day)
       : eodPeriod === 'week'
       ? (r.calls || kpi.calls_day) * 5
@@ -163,7 +169,7 @@ function Main() {
       ? (r.calls || kpi.calls_day) * workDays
       : (r.calls || kpi.calls_day) * workDays; // custom
 
-    const mtgTarget = eodPeriod === 'today'
+    const mtgTarget = (eodPeriod === 'today' || eodPeriod === 'yesterday')
       ? Math.ceil((r.mtg || kpi.meetings_month) / 22)
       : eodPeriod === 'week'
       ? Math.ceil((r.mtg || kpi.meetings_month) / 4.3)
@@ -173,7 +179,7 @@ function Main() {
       ? (r.mtg || kpi.meetings_month) * 3
       : Math.ceil((r.mtg || kpi.meetings_month) * eodRange.days / 30); // custom
 
-    const liTarget = eodPeriod === 'today'
+    const liTarget = (eodPeriod === 'today' || eodPeriod === 'yesterday')
       ? (r.li || kpi.li_day || 10)
       : eodPeriod === 'week'
       ? (r.li || kpi.li_day || 10) * 5
@@ -505,13 +511,13 @@ function Main() {
             {/* Period filter bar */}
             <div style={{ padding: '10px 18px', borderBottom: '.5px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, color: 'var(--t2)', fontWeight: 600, marginRight: 2 }}>Period:</span>
-              {(['today','week','month','quarter','custom'] as const).map(p => (
+              {(['today','yesterday','week','month','quarter','custom'] as const).map(p => (
                 <button
                   key={p}
                   onClick={() => { setEodPeriod(p); setEodPage(1); }}
                   className={`dr-btn ${eodPeriod === p ? 'on' : ''}`}
                 >
-                  {p === 'today' ? 'Today' : p === 'week' ? 'This week' : p === 'month' ? 'This month' : p === 'quarter' ? 'This quarter' : 'Custom'}
+                  {p === 'today' ? 'Today' : p === 'yesterday' ? 'Yesterday' : p === 'week' ? 'This week' : p === 'month' ? 'This month' : p === 'quarter' ? 'This quarter' : 'Custom'}
                 </button>
               ))}
               {eodPeriod === 'custom' && (
