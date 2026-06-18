@@ -109,6 +109,8 @@ function Main() {
     { key: 'gk',  emoji: '🚧', label: 'Gatekeeper',     cls: 'oc-gk'  },
     { key: 'ni',  emoji: '❌', label: 'Not interested', cls: 'oc-ni'  },
     { key: 'vm',  emoji: '📨', label: 'Voicemail',      cls: 'oc-vm'  },
+    { key: 'em',  emoji: '✉️', label: 'Email',           cls: 'oc-em'  },
+    { key: 'dm',  emoji: '🎯', label: 'Decision Maker',  cls: 'oc-dm'  },
   ];
 
   // EOD — period-aware data computation
