@@ -9,9 +9,9 @@ export const TODAY = new Date().toLocaleDateString('sv-SE', { timeZone: IST });
 export const NOW = new Date();
 export const MONTH_START = TODAY.slice(0, 8) + '01';
 
-export const OC_LABELS: Record<string, string> = { mtg: 'Meeting set', cb: 'Callback', in: 'Interested', na: 'No answer', gk: 'Gatekeeper', ni: 'Not interested', vm: 'Voicemail' };
-export const OC_COLORS: Record<string, string> = { mtg: '#1D9E75', cb: '#EF9F27', in: '#378ADD', na: '#888780', gk: '#85B7EB', ni: '#A32D2D', vm: '#7F77DD' };
-export const OC_BADGE: Record<string, string> = { mtg: 'b-win', cb: 'b-suspect', in: 'b-lead', na: 'b-none', gk: 'b-lead', ni: 'b-lost', vm: 'b-proposal' };
+export const OC_LABELS: Record<string, string> = { mtg: 'Meeting set', cb: 'Callback', in: 'Interested', na: 'No answer', gk: 'Gatekeeper', ni: 'Not interested', vm: 'Voicemail', em: 'Email', dm: 'Decision Maker' };
+export const OC_COLORS: Record<string, string> = { mtg: '#1D9E75', cb: '#EF9F27', in: '#378ADD', na: '#888780', gk: '#85B7EB', ni: '#A32D2D', vm: '#7F77DD', em: '#0EA5E9', dm: '#8B5CF6' };
+export const OC_BADGE: Record<string, string> = { mtg: 'b-win', cb: 'b-suspect', in: 'b-lead', na: 'b-none', gk: 'b-lead', ni: 'b-lost', vm: 'b-proposal', em: 'b-lead', dm: 'b-suspect' };
 export const TYPE_LBL: Record<string, string> = { call: 'Cold call', followup: 'Follow-up', linkedin: 'LinkedIn', email: 'Email', meeting: 'Meeting' };
 export const STAGE_COLS: Record<string, string> = { Lead: '#185FA5', Suspect: '#854F0B', Proposal: '#3C3489', Win: '#1D9E75', Lost: '#A32D2D' };
 export const STAGE_BG: Record<string, string> = { Lead: 'b-lead', Suspect: 'b-suspect', Proposal: 'b-proposal', Win: 'b-win', Lost: 'b-lost' };
