@@ -205,6 +205,8 @@ html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFo
 .oo.sel.oc-gk{background:#ddeeff;color:var(--blue);border-color:#85B7EB}
 .oo.sel.oc-ni{background:var(--rl);color:var(--red);border-color:#F09595}
 .oo.sel.oc-vm{background:#f5f0ff;color:var(--purple);border-color:#AFA9EC}
+.oo.sel.oc-em{background:#e0f4fe;color:#0284C7;border-color:#7DD3FC}
+.oo.sel.oc-dm{background:#ede9fe;color:#7C3AED;border-color:#C4B5FD}
 
 /* CALL LOG ITEMS */
 .cl-item{display:flex;align-items:flex-start;gap:10px;padding:9px 5px;border-bottom:.5px solid var(--border);border-radius:6px;transition:background .07s}
