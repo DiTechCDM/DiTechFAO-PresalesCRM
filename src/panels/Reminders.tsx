@@ -37,6 +37,7 @@ export default function Reminders() {
   const [importModal, setImportModal] = useState(false);
   const [importRows, setImportRows]   = useState<Partial<Reminder>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const rep     = currentUser?.linkedRep || currentUser?.name || '';
   const isAdmin = currentUser?.role === 'admin';
@@ -123,10 +124,38 @@ export default function Reminders() {
 
   const deleteReminder = (id: string) => {
     setReminders(reminders.filter(r => r.id !== id));
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     showToast('Deleted', 'err');
   };
 
-  const changeFilter = (f: Filter) => { setFilter(f); setPage(1); };
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const pagedIds = paged.map(r => r.id);
+  const allPageSelected = pagedIds.length > 0 && pagedIds.every(id => selectedIds.has(id));
+  const somePageSelected = pagedIds.some(id => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); pagedIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); pagedIds.forEach(id => n.add(id)); return n; });
+    }
+  };
+
+  const deleteSelected = () => {
+    const count = selectedIds.size;
+    setReminders(reminders.filter(r => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+    showToast(`Deleted ${count} reminder${count !== 1 ? 's' : ''}`, 'err');
+  };
+
+  const changeFilter = (f: Filter) => { setFilter(f); setPage(1); setSelectedIds(new Set()); };
   const changeType   = (t: string)  => { setTypeFilter(t); setPage(1); };
 
   // ── CSV import helpers ──
@@ -338,10 +367,37 @@ export default function Reminders() {
         <>
           {/* Table */}
           <div className="tw" style={{ flex:1, minHeight:0 }}>
+
+            {/* ── Bulk action bar ── */}
+            {selectedIds.size > 0 && (
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px',
+                background:'#FFF5F5', borderBottom:'.5px solid #FECACA', flexShrink:0 }}>
+                <span style={{ fontSize:12, fontWeight:600, color:'var(--red)' }}>
+                  {selectedIds.size} selected
+                </span>
+                <button onClick={deleteSelected}
+                  style={{ padding:'5px 14px', borderRadius:'var(--r)', border:'1px solid var(--red)',
+                    background:'var(--red)', color:'#fff', fontWeight:600, fontSize:12, cursor:'pointer' }}>
+                  🗑 Delete {selectedIds.size} reminder{selectedIds.size !== 1 ? 's' : ''}
+                </button>
+                <button onClick={() => setSelectedIds(new Set())}
+                  style={{ fontSize:11, color:'var(--t3)', background:'none', border:'none', cursor:'pointer' }}>
+                  ✕ Clear selection
+                </button>
+              </div>
+            )}
+
             <div className="tscroll">
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width:32, textAlign:'center' }}>
+                      <input type="checkbox"
+                        checked={allPageSelected}
+                        ref={el => { if (el) el.indeterminate = somePageSelected && !allPageSelected; }}
+                        onChange={toggleSelectAll}
+                        style={{ width:14, height:14, cursor:'pointer', accentColor:'var(--red)' }} />
+                    </th>
                     <th style={{ width:32 }}></th>
                     <th style={{ width:120 }}>Type</th>
                     <th>Title</th>
@@ -361,13 +417,20 @@ export default function Reminders() {
                     const ov = !r.done && r.dueDate < todayStr;
                     const td = !r.done && r.dueDate === todayStr;
                     const repObj = activeReps.find((x: any) => x.name === r.rep);
+                    const isSelected = selectedIds.has(r.id);
 
                     return (
                       <tr key={r.id} style={{
-                        background: r.done ? 'var(--grl)' : ov ? '#FFF5F5' : td ? '#F0F7FF' : undefined,
+                        background: isSelected ? '#FFF1F1' : r.done ? 'var(--grl)' : ov ? '#FFF5F5' : td ? '#F0F7FF' : undefined,
                         opacity: r.done ? 0.65 : 1,
+                        outline: isSelected ? '1.5px solid #FECACA' : undefined,
                       }}>
-                        {/* Checkbox */}
+                        {/* Select checkbox */}
+                        <td style={{ textAlign:'center' }}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(r.id)}
+                            style={{ width:14, height:14, cursor:'pointer', accentColor:'var(--red)' }} />
+                        </td>
+                        {/* Done checkbox */}
                         <td style={{ textAlign:'center' }}>
                           <input type="checkbox" checked={r.done} onChange={() => toggleDone(r.id)}
                             style={{ width:15, height:15, cursor:'pointer', accentColor:'var(--brand)' }} />
