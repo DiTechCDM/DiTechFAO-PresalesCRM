@@ -144,24 +144,33 @@ export default function Reminders() {
     return TODAY;
   };
 
+  const resolveType = (raw: string): Reminder['type'] => {
+    const v = raw.toLowerCase().replace(/[^a-z]/g, '');
+    if (v === 'followupcall' || v === 'followup' || v === 'follow') return 'follow-up';
+    if (v === 'meeting')  return 'meeting';
+    if (v === 'task')     return 'task';
+    if (v === 'linkedin') return 'linkedin';
+    return 'follow-up';
+  };
+
   const parseImportRows = (rows: string[][]): Partial<Reminder>[] => {
     if (rows.length < 2) return [];
     const headers = rows[0];
     const iType    = colIdx(headers, ['type', 'reminder type']);
     const iTitle   = colIdx(headers, ['title', 'task', 'reminder title', 'reminder']);
-    const iFirm    = colIdx(headers, ['firm name', 'firm', 'company name', 'company']);
+    const iFirm    = colIdx(headers, ['firm', 'firm name', 'company', 'company name']);
     const iContact = colIdx(headers, ['contact', 'contact name']);
     const iDate    = colIdx(headers, ['due date', 'date', 'duedate', 'due_date']);
     const iTime    = colIdx(headers, ['due time', 'time', 'duetime', 'due_time']);
-    const iNotes   = colIdx(headers, ['notes', 'prep', 'description', 'note']);
-    const iRep     = colIdx(headers, ['rep', 'assigned to', 'assignee', 'sales rep']);
+    const iNotes   = colIdx(headers, ['notes / prep', 'notes', 'prep', 'notes/prep', 'description', 'note']);
+    const iRep     = colIdx(headers, ['assign to rep', 'assigned to rep', 'rep', 'assigned to', 'assignee', 'sales rep']);
     const parsed: Partial<Reminder>[] = [];
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const title = (iTitle >= 0 ? row[iTitle] : '')?.trim();
       if (!title) continue;
-      const rawType = (iType >= 0 ? row[iType] : '')?.trim().toLowerCase();
-      const type = (['follow-up','meeting','task','linkedin'].includes(rawType) ? rawType : 'follow-up') as Reminder['type'];
+      const rawType = (iType >= 0 ? row[iType] : '')?.trim();
+      const type = resolveType(rawType);
       const firmNameRaw = (iFirm >= 0 ? row[iFirm] : '')?.trim();
       const matched = firmNameRaw ? firms.find(f => f.name.toLowerCase() === firmNameRaw.toLowerCase()) : undefined;
       parsed.push({
@@ -221,10 +230,11 @@ export default function Reminders() {
 
   const downloadTemplate = () => {
     const csv = [
-      'Type,Title,Firm Name,Contact,Due Date,Due Time,Notes,Rep',
-      '"follow-up","Call with client","Acme Accountants","John Smith","2026-07-10","09:00","Discuss the pricing proposal",""',
-      '"meeting","Intro meeting","Clarke & Co","Sarah Lee","2026-07-15","14:00","","Diksha"',
-      '"task","Send brochure","","","2026-07-12","","Email PDF to prospect",""',
+      'Type,Title,Firm,Contact,Due Date,Due Time,Notes / Prep,Assign to Rep',
+      '"Follow-up call","Call Andrew Nash re: proposal","Acme Accountants","Andrew Nash","2026-07-10","09:00","Discuss the new pricing proposal","Diksha"',
+      '"Meeting","Intro meeting with Clarke & Co","Clarke & Co","Sarah Lee","2026-07-15","14:00","Prepare slides and case studies",""',
+      '"Task","Send brochure to FRP Advisory","","","2026-07-12","09:00","Email the PDF brochure to the main contact",""',
+      '"LinkedIn","Connect with Claire Ford","Sterling Grove Accountants","Claire Ford","2026-07-20","","Send connection request with personalised note",""',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -536,14 +546,14 @@ export default function Reminders() {
                     </thead>
                     <tbody>
                       {[
-                        ['Type',     'No',  'follow-up · meeting · task · linkedin  (defaults to follow-up if blank)'],
-                        ['Title',    'Yes', 'Any text — rows without a title are skipped'],
-                        ['Firm Name','No',  'Must match a firm name in your Firms DB to auto-link'],
-                        ['Contact',  'No',  'Contact person name (auto-filled from Firms DB if matched)'],
-                        ['Due Date', 'No',  'YYYY-MM-DD  or  DD/MM/YYYY  (defaults to today if blank)'],
-                        ['Due Time', 'No',  'HH:MM in 24-hour format, e.g. 09:00 or 14:30 (defaults to 09:00)'],
-                        ['Notes',    'No',  'Any prep notes or context for the reminder'],
-                        ['Rep',      'No',  'Rep name as it appears in the system (defaults to your name)'],
+                        ['Type',          'No',  '"Follow-up call"  ·  "Meeting"  ·  "Task"  ·  "LinkedIn"  — defaults to Follow-up call if blank'],
+                        ['Title',         'Yes', 'Any text, e.g. "Call Andrew Nash re: proposal" — rows without a title are skipped'],
+                        ['Firm',          'No',  'Firm name exactly as it appears in your Firms DB — auto-links and fills Contact if matched'],
+                        ['Contact',       'No',  'Contact person name — auto-filled from Firms DB when Firm is matched'],
+                        ['Due Date',      'Yes', 'YYYY-MM-DD  or  DD/MM/YYYY  e.g. 2026-07-10 or 10/07/2026'],
+                        ['Due Time',      'No',  'HH:MM in 24-hour format, e.g. 09:00 or 14:30  (defaults to 09:00)'],
+                        ['Notes / Prep',  'No',  'Talking points, what to prepare, key context for the reminder'],
+                        ['Assign to Rep', 'No',  'Rep name as shown in the system, e.g. "Diksha" — defaults to your name if blank'],
                       ].map(([col, req, desc], i) => (
                         <tr key={col} style={{ borderBottom:'.5px solid var(--border)', background: i%2===0 ? '#fff' : 'var(--grl)' }}>
                           <td style={{ padding:'7px 12px', fontWeight:600, whiteSpace:'nowrap', color:'var(--text)' }}>{col}</td>
