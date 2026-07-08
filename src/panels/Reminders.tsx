@@ -24,6 +24,7 @@ export default function Reminders() {
 
   const [filter, setFilter]         = useState<Filter>('all');
   const [typeFilter, setTypeFilter] = useState('');
+  const [repFilter, setRepFilter]   = useState('');
   const [dateFrom, setDateFrom]     = useState('');
   const [dateTo, setDateTo]         = useState('');
   const [showCustomDate, setShowCustomDate] = useState(false);
@@ -56,6 +57,7 @@ export default function Reminders() {
     const res = scoped
       .filter(r => {
         if (typeFilter && r.type !== typeFilter) return false;
+        if (repFilter && r.rep !== repFilter) return false;
         if (dateFrom && r.dueDate < dateFrom) return false;
         if (dateTo && r.dueDate > dateTo) return false;
         if (filter === 'today')    return !r.done && r.dueDate === todayStr;
@@ -69,7 +71,7 @@ export default function Reminders() {
         return a.dueDate.localeCompare(b.dueDate) || (a.dueTime||'').localeCompare(b.dueTime||'');
       });
     return res;
-  }, [scoped, filter, typeFilter, dateFrom, dateTo, todayStr]);
+  }, [scoped, filter, typeFilter, repFilter, dateFrom, dateTo, todayStr]);
 
   const overdueCount = scoped.filter(r => !r.done && r.dueDate < todayStr).length;
   const todayCount   = scoped.filter(r => !r.done && r.dueDate === todayStr).length;
@@ -157,6 +159,7 @@ export default function Reminders() {
 
   const changeFilter = (f: Filter) => { setFilter(f); setPage(1); setSelectedIds(new Set()); };
   const changeType   = (t: string)  => { setTypeFilter(t); setPage(1); };
+  const changeRep    = (r: string)  => { setRepFilter(r); setPage(1); };
 
   // ── CSV import helpers ──
   const colIdx = (headers: string[], names: string[]) => {
@@ -328,6 +331,16 @@ export default function Reminders() {
           <option value="">All types</option>
           {Object.entries(TYPE_META).map(([k,v]) => <option key={k} value={k}>{v.emoji} {v.label}</option>)}
         </select>
+        {isAdmin && (
+          <>
+            <div style={{ width:1, height:20, background:'var(--border)', flexShrink:0 }} />
+            <select value={repFilter} onChange={e => changeRep(e.target.value)}
+              style={{ padding:'4px 9px', border:'.5px solid var(--border2)', borderRadius:'var(--r)', fontSize:12, background:'#fff', outline:'none' }}>
+              <option value="">All reps</option>
+              {activeReps.map((r: any) => <option key={r.id} value={r.name}>{r.name}</option>)}
+            </select>
+          </>
+        )}
         <div style={{ width:1, height:20, background:'var(--border)', flexShrink:0 }} />
         <button onClick={() => setShowCustomDate(v => !v)}
           className={`dr-btn ${showCustomDate ? 'on' : ''}`}>Custom</button>
