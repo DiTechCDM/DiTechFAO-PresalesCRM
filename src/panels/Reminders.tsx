@@ -44,6 +44,13 @@ export default function Reminders() {
   const isAdmin = currentUser?.role === 'admin';
   const activeReps = (admin.reps || []).filter((r: any) => r.status === 'Active');
 
+  // Rep names to offer in the reminders Rep filter: active reps + anyone who already has a reminder assigned
+  const filterReps = useMemo(() => {
+    const names = new Set<string>(activeReps.map((r: any) => r.name as string));
+    reminders.forEach(r => { if (r.rep) names.add(r.rep); });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [activeReps, reminders]);
+
   // Scope: reps see own, admins see all
   const scoped = useMemo(() =>
     isAdmin ? reminders : reminders.filter(r => r.rep === rep),
@@ -337,7 +344,7 @@ export default function Reminders() {
             <select value={repFilter} onChange={e => changeRep(e.target.value)}
               style={{ padding:'4px 9px', border:'.5px solid var(--border2)', borderRadius:'var(--r)', fontSize:12, background:'#fff', outline:'none' }}>
               <option value="">All reps</option>
-              {activeReps.map((r: any) => <option key={r.id} value={r.name}>{r.name}</option>)}
+              {filterReps.map((name: string) => <option key={name} value={name}>{name}</option>)}
             </select>
           </>
         )}
