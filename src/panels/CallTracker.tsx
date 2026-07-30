@@ -16,7 +16,7 @@ const OUTCOMES = [
 ];
 
 // ── Edit Call Modal ────────────────────────────────────────────────────────
-function EditCallModal({ call, firms, onSave, onClose }: {
+export function EditCallModal({ call, firms, onSave, onClose }: {
   call: Call;
   firms: Firm[];
   onSave: (original: Call, updated: Partial<Call>) => void;
@@ -133,6 +133,7 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
   const [mtgDate, setMtgDate] = useState('');
   const [notes, setNotes] = useState('');
   const [ocFilter, setOcFilter] = useState('');
+  const [logDate, setLogDate] = useState(TODAY);
   const firmInputRef = useRef<HTMLInputElement>(null);
 
   // Pre-fill firm from Firms DB "Log call" button
@@ -159,7 +160,12 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
     if (useAllRepAggregate) return allRepNames.has(c.rep);
     return !repFilter || c.rep === repFilter;
   });
-  const shownCalls = ocFilter ? todayCalls.filter(c => c.oc === ocFilter) : todayCalls;
+  const logDateCalls = allCalls.filter(c => {
+    if (!c.ts.startsWith(logDate)) return false;
+    if (useAllRepAggregate) return allRepNames.has(c.rep);
+    return !repFilter || c.rep === repFilter;
+  });
+  const shownCalls = ocFilter ? logDateCalls.filter(c => c.oc === ocFilter) : logDateCalls;
 
   // KPI metrics
   const kpi = getActiveFYKpi();
@@ -343,16 +349,19 @@ export default function CallTracker({ defaultFirmId, onClearFirm, onOpenEOD }: P
             <div className="card-hd" style={{padding:'12px 16px 10px',borderBottom:'.5px solid var(--border)'}}>
               <div>
                 <div className="card-title">Today's log</div>
-                <div className="card-sub">{shownCalls.length} entries logged today</div>
+                <div className="card-sub">{shownCalls.length} entries logged {logDate === TODAY ? 'today' : `on ${new Date(logDate+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}`}</div>
               </div>
-              <select value={ocFilter} onChange={e=>setOcFilter(e.target.value)} style={{padding:'4px 9px',border:'.5px solid var(--border2)',borderRadius:'var(--r)',fontSize:11,background:'#fff',outline:'none'}}>
-                <option value="">All outcomes</option>
-                {OUTCOMES.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
-              </select>
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <input type="date" value={logDate} max={TODAY} onChange={e=>setLogDate(e.target.value || TODAY)} style={{padding:'4px 9px',border:'.5px solid var(--border2)',borderRadius:'var(--r)',fontSize:11,background:'#fff',outline:'none'}} />
+                <select value={ocFilter} onChange={e=>setOcFilter(e.target.value)} style={{padding:'4px 9px',border:'.5px solid var(--border2)',borderRadius:'var(--r)',fontSize:11,background:'#fff',outline:'none'}}>
+                  <option value="">All outcomes</option>
+                  {OUTCOMES.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
             <div style={{padding:'6px 10px',maxHeight:480,overflowY:'auto'}}>
               {shownCalls.length === 0 ? (
-                <div style={{color:'var(--t3)',fontSize:12,fontStyle:'italic',padding:'20px 0',textAlign:'center'}}>No calls logged yet today</div>
+                <div style={{color:'var(--t3)',fontSize:12,fontStyle:'italic',padding:'20px 0',textAlign:'center'}}>No calls logged {logDate === TODAY ? 'yet today' : 'on this date'}</div>
               ) : shownCalls.slice().sort((a,b)=>b.ts.localeCompare(a.ts)).map(c => {
                 const isExpanded = expandedNoteId === c.id;
                 return (
