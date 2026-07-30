@@ -1,9 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store';
 import { fmtFull, fmtDate, OC_LABELS, OC_COLORS, TYPE_LBL, TODAY, MONTH_START } from '../lib/utils';
+import { EditCallModal } from './CallTracker';
+import { Call } from '../types';
 
 export default function AllCalls() {
-  const { calls, admin, scopeCalls } = useAppContext();
+  const { calls, setCalls, firms, admin, scopeCalls, showToast } = useAppContext();
+  const [editingCall, setEditingCall] = useState<Call | null>(null);
+
+  const saveEdit = (original: Call, updated: Partial<Call>) => {
+    setCalls(calls.map(c => c.id === original.id ? { ...c, ...updated } : c));
+    setEditingCall(null);
+    showToast('Call updated', 'ok');
+  };
   const [search, setSearch] = useState('');
   const [repF, setRepF] = useState('');
   const [ocF, setOcF] = useState('');
@@ -93,11 +102,11 @@ export default function AllCalls() {
         <div className="tscroll">
           <table>
             <thead><tr>
-              <th>Time</th><th>Rep</th><th>Firm</th><th>Contact</th><th>Type</th><th>Outcome</th><th>Stage</th><th>Notes</th><th>Follow-up</th>
+              <th>Time</th><th>Rep</th><th>Firm</th><th>Contact</th><th>Type</th><th>Outcome</th><th>Stage</th><th>Notes</th><th>Follow-up</th><th></th>
             </tr></thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={9} style={{padding:24,textAlign:'center',color:'var(--t3)',fontStyle:'italic'}}>No entries for this period</td></tr>
+                <tr><td colSpan={10} style={{padding:24,textAlign:'center',color:'var(--t3)',fontStyle:'italic'}}>No entries for this period</td></tr>
               ) : paged.map(c => {
                 const repObj = admin.reps?.find(r=>r.name===c.rep);
                 const col = repObj?.col || '#888';
@@ -132,6 +141,7 @@ export default function AllCalls() {
                       ) : '—'}
                     </td>
                     <td style={{fontSize:12,color:'var(--amber)'}}>{c.fu ? fmtDate(c.fu) : '—'}</td>
+                    <td><button className="cl-act" onClick={()=>setEditingCall(c)}>Edit</button></td>
                   </tr>
                 );
               })}
@@ -145,6 +155,13 @@ export default function AllCalls() {
           <button className="pg-btn" disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>Next →</button>
         </div>
       </div>
+
+      {editingCall && <EditCallModal
+        call={editingCall}
+        firms={firms}
+        onSave={saveEdit}
+        onClose={()=>setEditingCall(null)}
+      />}
     </div>
   );
 }
