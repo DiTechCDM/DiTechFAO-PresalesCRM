@@ -120,6 +120,7 @@ export interface Reminder {
   firmId?: string;
   firmName?: string;
   contact?: string;
+  callId?: string;
   dueDate: string;
   dueTime?: string;
   notes?: string;

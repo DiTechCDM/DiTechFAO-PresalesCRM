@@ -12,6 +12,7 @@ function mapReminder(row) {
     firmId: row.firm_id || '',
     firmName: row.firm_name || '',
     contact: row.contact_name || '',
+    callId: row.call_id || '',
     dueDate: row.due_date || '',
     dueTime: row.due_time || '',
     notes: row.notes || '',
@@ -60,9 +61,9 @@ router.post('/', async (req, res) => {
 
     await pool.query(
       `INSERT INTO reminders
-        (id,rep_id,firm_id,type,title,notes,due_date,due_time,done,created_from,created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, rid, r.firmId||null, r.type||'follow-up', r.title, r.notes||null,
+        (id,rep_id,firm_id,call_id,type,title,notes,due_date,due_time,done,created_from,created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [id, rid, r.firmId||null, r.callId||null, r.type||'follow-up', r.title, r.notes||null,
        r.dueDate, r.dueTime||null, r.done ? 1 : 0, r.createdFrom||'manual', createdAt]
     );
 

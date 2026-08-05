@@ -212,6 +212,7 @@ CREATE TABLE reminders (
   rep_id          CHAR(36)     NULL,
   firm_id         CHAR(36)     NULL,
   firm_contact_id CHAR(36)     NULL,
+  call_id         CHAR(36)     NULL,                -- links reminder back to the call it was created from
   type            ENUM('follow-up','meeting','task','linkedin','proposal') NOT NULL DEFAULT 'follow-up',
   title           VARCHAR(300) NOT NULL,
   notes           TEXT         NULL,
@@ -226,12 +227,14 @@ CREATE TABLE reminders (
   PRIMARY KEY (id),
   INDEX idx_rem_rep      (rep_id),
   INDEX idx_rem_firm     (firm_id),
+  INDEX idx_rem_call     (call_id),
   INDEX idx_rem_due      (due_date),
   INDEX idx_rem_done     (done),
   INDEX idx_rem_overdue  (done, due_date),          -- fast overdue count query
   CONSTRAINT fk_rem_rep     FOREIGN KEY (rep_id)          REFERENCES reps(id)          ON DELETE SET NULL,
   CONSTRAINT fk_rem_firm    FOREIGN KEY (firm_id)         REFERENCES firms(id)         ON DELETE SET NULL,
   CONSTRAINT fk_rem_contact FOREIGN KEY (firm_contact_id) REFERENCES firm_contacts(id) ON DELETE SET NULL,
+  CONSTRAINT fk_rem_call    FOREIGN KEY (call_id)         REFERENCES calls(id)         ON DELETE SET NULL,
   CONSTRAINT fk_rem_done_by FOREIGN KEY (done_by_id)      REFERENCES users(id)         ON DELETE SET NULL
 ) ENGINE=InnoDB;
 

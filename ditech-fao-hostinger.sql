@@ -240,6 +240,7 @@ CREATE TABLE `reminders` (
   `rep_id` char(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `firm_id` char(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `firm_contact_id` char(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `call_id` char(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `type` enum('follow-up','meeting','task','linkedin','proposal') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'follow-up',
   `title` varchar(300) COLLATE utf8mb4_unicode_ci NOT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci,
@@ -254,21 +255,23 @@ CREATE TABLE `reminders` (
   PRIMARY KEY (`id`),
   KEY `idx_rem_rep` (`rep_id`),
   KEY `idx_rem_firm` (`firm_id`),
+  KEY `idx_rem_call` (`call_id`),
   KEY `idx_rem_due` (`due_date`),
   KEY `idx_rem_done` (`done`),
   KEY `idx_rem_overdue` (`done`,`due_date`),
   KEY `fk_rem_contact` (`firm_contact_id`),
   KEY `fk_rem_done_by` (`done_by_id`),
   CONSTRAINT `fk_rem_contact` FOREIGN KEY (`firm_contact_id`) REFERENCES `firm_contacts` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_rem_call` FOREIGN KEY (`call_id`) REFERENCES `calls` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_rem_done_by` FOREIGN KEY (`done_by_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_rem_firm` FOREIGN KEY (`firm_id`) REFERENCES `firms` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_rem_rep` FOREIGN KEY (`rep_id`) REFERENCES `reps` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `reminders` VALUES
-  ('xmnd056td08lp','rep-diksha','xmnd351vjcjrf',NULL,'follow-up','andrews calls ',NULL,'2026-03-30','15:15:00',0,NULL,NULL,'manual','2026-03-30 09:45:06','2026-03-30 16:46:07'),
-  ('xmnd0612ipzg2',NULL,'xmnczztuaaepg',NULL,'linkedin','meeting with wayne ',NULL,'2026-03-29','15:02:00',0,NULL,NULL,'manual','2026-03-30 09:45:45','2026-03-30 16:16:40'),
-  ('xmnd2bmjtbsds','rep-sadichha',NULL,NULL,'follow-up','call with ashsih ',NULL,'2026-03-31','09:00:00',0,NULL,NULL,'manual','2026-03-30 10:46:05','2026-03-30 16:16:20');
+  ('xmnd056td08lp','rep-diksha','xmnd351vjcjrf',NULL,NULL,'follow-up','andrews calls ',NULL,'2026-03-30','15:15:00',0,NULL,NULL,'manual','2026-03-30 09:45:06','2026-03-30 16:46:07'),
+  ('xmnd0612ipzg2',NULL,'xmnczztuaaepg',NULL,NULL,'linkedin','meeting with wayne ',NULL,'2026-03-29','15:02:00',0,NULL,NULL,'manual','2026-03-30 09:45:45','2026-03-30 16:16:40'),
+  ('xmnd2bmjtbsds','rep-sadichha',NULL,NULL,NULL,'follow-up','call with ashsih ',NULL,'2026-03-31','09:00:00',0,NULL,NULL,'manual','2026-03-30 10:46:05','2026-03-30 16:16:20');
 
 -- ============================================================
 --  ADMIN SETTINGS
