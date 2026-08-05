@@ -256,8 +256,8 @@ export default function AllCalls() {
                           style={{
                             width:20,height:20,borderRadius:'50%',border:'none',cursor:'pointer',padding:0,
                             display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,flexShrink:0,
-                            background: linkedReminder ? (linkedReminder.done ? 'var(--gl)' : '#FEF3C7') : 'var(--s2)',
-                            color: linkedReminder ? (linkedReminder.done ? '#1D9E75' : '#B45309') : 'var(--t3)',
+                            background: linkedReminder ? 'var(--gl)' : 'var(--s2)',
+                            color: linkedReminder ? '#1D9E75' : 'var(--t3)',
                           }}
                         >🔔</button>
                       </div>
