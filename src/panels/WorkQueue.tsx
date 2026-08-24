@@ -20,13 +20,14 @@ import {
    any other panel.
    ─────────────────────────────────────────────────────────────── */
 
-type Period = 'yesterday' | '7d' | '30d' | 'month' | 'all';
+type Period = 'yesterday' | '7d' | '30d' | 'month' | 'all' | 'custom';
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'yesterday', label: 'Yesterday' },
   { key: '7d', label: '7 days' },
   { key: '30d', label: '30 days' },
   { key: 'month', label: 'This month' },
   { key: 'all', label: 'All' },
+  { key: 'custom', label: 'Custom' },
 ];
 
 function DismissModal({ card, onClose, onConfirm }: { card: QueueCard; onClose: () => void; onConfirm: (reason: string, notes: string) => Promise<void> | void }) {
@@ -82,6 +83,8 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const [dismissError, setDismissError] = useState(false);
   const [repFilter, setRepFilter] = useState('');
   const [period, setPeriod] = useState<Period>('7d');
+  const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' }); });
+  const [customTo, setCustomTo] = useState(TODAY);
   const [dismissCard, setDismissCard] = useState<QueueCard | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedBands, setExpandedBands] = useState<Set<string>>(new Set());
@@ -111,8 +114,9 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
     if (period === '7d')  { const f = new Date(t); f.setDate(f.getDate() - 6);  return { from: fmt(f), to: TODAY }; }
     if (period === '30d') { const f = new Date(t); f.setDate(f.getDate() - 29); return { from: fmt(f), to: TODAY }; }
     if (period === 'month') return { from: TODAY.slice(0, 8) + '01', to: TODAY };
+    if (period === 'custom' && customFrom && customTo) return { from: customFrom, to: customTo };
     return { from: '0000-01-01', to: '9999-12-31' };
-  }, [period]);
+  }, [period, customFrom, customTo]);
 
   const periodCalls = useMemo(
     () => repCalls.filter(c => { const d = c.ts.split('T')[0]; return d >= periodRange.from && d <= periodRange.to; }),
@@ -195,12 +199,19 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
         <div className="alert warn">⚠ Couldn't load the close/dismiss history — cards you've already closed may show up again until this loads.</div>
       )}
 
-      {/* ── Period filter — drives the verdict strip and metrics below ONLY, never the queue further down ── */}
+      {/* ── Period filter — drives the verdict strip, metrics, and the work queue below ── */}
       <div className="date-bar">
         <span style={{ fontSize: 11, color: 'var(--t2)' }}>Period:</span>
         {PERIODS.map(p => (
           <button key={p.key} className={`dr-btn ${period === p.key ? 'on' : ''}`} onClick={() => setPeriod(p.key)}>{p.label}</button>
         ))}
+        {period === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <input type="date" className="date-inp" value={customFrom} max={customTo} onChange={e => setCustomFrom(e.target.value)} />
+            <span style={{ fontSize: 11, color: 'var(--t2)' }}>to</span>
+            <input type="date" className="date-inp" value={customTo} min={customFrom} max={TODAY} onChange={e => setCustomTo(e.target.value)} />
+          </div>
+        )}
         <span style={{ fontSize: 11, color: 'var(--t2)' }}>{stats.total.toLocaleString()} attempts</span>
       </div>
 
@@ -240,7 +251,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
 
       {/* ── Work queue — four bands, filtered to firms signalled in the period above ── */}
       <div className="page-hd" style={{ marginBottom: 8 }}>
-        <div><div className="page-title" style={{ fontSize: 15 }}>Work queue</div><div className="page-sub">Firms grouped by how long they've waited since the route they gave us, in the {PERIODS.find(p => p.key === period)?.label.toLowerCase()} — pick "All" to see the full backlog regardless of when it came in</div></div>
+        <div><div className="page-title" style={{ fontSize: 15 }}>Work queue</div><div className="page-sub">Firms grouped by how long they've waited since the route they gave us, {period === 'all' ? 'across full history' : `${fmtDate(periodRange.from)} – ${fmtDate(periodRange.to)}`} — pick "All" to see the full backlog regardless of when it came in</div></div>
       </div>
       <div className="sg sg4" style={{ marginBottom: 14 }}>
         {BAND_ORDER.map(b => (
