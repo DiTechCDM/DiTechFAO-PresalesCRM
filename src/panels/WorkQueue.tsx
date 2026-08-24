@@ -169,7 +169,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <div className="page-hd">
         <div>
-          <div className="page-title">Work Queue</div>
+          <div className="page-title">Call Reports</div>
           <div className="page-sub">Every firm that gave us a route and is waiting on a reply, sorted by how long they've waited</div>
         </div>
         {viewAll && (

@@ -17,7 +17,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
     { id: 'firms',     label: 'Firms DB',        ico: '🏢' },
     { id: 'calls',     label: 'Call Tracker',     ico: '📞' },
     { id: 'allcalls',  label: 'All Calls',        ico: '📋' },
-    { id: 'workqueue', label: 'Work Queue',       ico: '🎯' },
+    { id: 'workqueue', label: 'Call Reports',     ico: '🎯' },
     { id: 'team',      label: 'Team KPIs',        ico: '📊' },
     { id: 'funnel',    label: 'Funnel & Revenue', ico: '📈' },
     { id: 'reminders', label: 'Reminders',        ico: '🔔' },
