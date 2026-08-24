@@ -184,7 +184,53 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
         <div className="alert warn">⚠ Couldn't load the close/dismiss history — cards you've already closed may show up again until this loads.</div>
       )}
 
-      {/* ── Work queue — four bands, always full history ── */}
+      {/* ── Period filter — drives the verdict strip and metrics below ONLY, never the queue further down ── */}
+      <div className="date-bar">
+        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Period:</span>
+        {PERIODS.map(p => (
+          <button key={p.key} className={`dr-btn ${period === p.key ? 'on' : ''}`} onClick={() => setPeriod(p.key)}>{p.label}</button>
+        ))}
+        <span style={{ fontSize: 11, color: 'var(--t2)' }}>{stats.total.toLocaleString()} attempts</span>
+      </div>
+
+      {/* ── Verdict strip ── */}
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px,1.3fr) 2fr', gap: 24, alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 650, letterSpacing: '-.01em', lineHeight: 1.3 }}>
+            <b style={{ fontFamily: 'monospace' }}>{stats.signalPct}%</b> of calls moved something forward.
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--t2)', marginTop: 6 }}>
+            <b>{(stats.byBucket.gate + stats.byBucket.dead).toLocaleString()}</b> reached nobody who decides — about <b>{burnHours} hours</b>.
+            {stats.byBucket.meeting > 0 && <> <b>{stats.byBucket.meeting}</b> produced a meeting or files.</>}
+          </div>
+        </div>
+        <div>
+          <div style={{ display: 'flex', height: 24, borderRadius: 3, overflow: 'hidden', border: '.5px solid var(--border)', background: '#fff' }}>
+            {BUCKET_ORDER.map(b => stats.byBucket[b] > 0 && (
+              <span key={b} title={`${BUCKET_LABEL[b]}: ${stats.byBucket[b]}`} style={{ display: 'block', width: `${(stats.byBucket[b] / Math.max(1, stats.total)) * 100}%`, background: BUCKET_COLOR[b] }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--t2)', marginTop: 6 }}>
+            {BUCKET_ORDER.map(b => (
+              <span key={b}><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 1, marginRight: 5, background: BUCKET_COLOR[b] }} />{BUCKET_LABEL[b]} <b style={{ color: 'var(--text)' }}>{stats.byBucket[b]}</b></span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="sg sg6" style={{ marginBottom: 16 }}>
+        <div className="sc"><div className="sl">Attempts</div><div className="sv">{stats.total.toLocaleString()}</div><div className="ss">In selected period</div></div>
+        <div className="sc"><div className="sl">Firms</div><div className="sv">{stats.firms.toLocaleString()}</div><div className="ss">Contacted in period</div></div>
+        <div className="sc"><div className="sl">Signal</div><div className="sv" style={{ color: 'var(--green)' }}>{stats.signal.toLocaleString()}</div><div className="ss">{stats.signalPct}% of attempts</div></div>
+        <div className="sc"><div className="sl">Act today</div><div className="sv" style={{ color: 'var(--red)' }}>{byBand.act.length}</div><div className="ss">From yesterday's calls</div></div>
+        <div className="sc"><div className="sl">Owed in total</div><div className="sv">{queue.length}</div><div className="ss">Firms waiting on us</div></div>
+        <div className="sc"><div className="sl">Time burned</div><div className="sv" style={{ color: 'var(--red)' }}>{burnHours}h</div><div className="ss">Reached nobody</div></div>
+      </div>
+
+      {/* ── Work queue — four bands, always full history, unaffected by the period filter above ── */}
+      <div className="page-hd" style={{ marginBottom: 8 }}>
+        <div><div className="page-title" style={{ fontSize: 15 }}>Work queue</div><div className="page-sub">Every firm that gave us a route, grouped by how long they've waited — always full history, regardless of the period filter above</div></div>
+      </div>
       <div className="sg sg4" style={{ marginBottom: 14 }}>
         {BAND_ORDER.map(b => (
           <div key={b} className="sc" style={{ borderTop: `3px solid ${b === 'act' ? 'var(--red)' : b === 'due' ? 'var(--amber)' : b === 'slip' ? 'var(--blue)' : 'var(--t3)'}` }}>
@@ -245,52 +291,6 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
             </div>
           );
         })}
-      </div>
-
-      {/* ── Activity stats — period filter applies here ONLY, never to the queue above ── */}
-      <div className="page-hd" style={{ marginBottom: 8 }}>
-        <div><div className="page-title" style={{ fontSize: 15 }}>Activity</div><div className="page-sub">How the calls in this period broke down — the queue above always looks at full history regardless of this filter</div></div>
-      </div>
-      <div className="date-bar">
-        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Period:</span>
-        {PERIODS.map(p => (
-          <button key={p.key} className={`dr-btn ${period === p.key ? 'on' : ''}`} onClick={() => setPeriod(p.key)}>{p.label}</button>
-        ))}
-        <span style={{ fontSize: 11, color: 'var(--t2)' }}>{stats.total.toLocaleString()} attempts</span>
-      </div>
-
-      {/* ── Verdict strip ── */}
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px,1.3fr) 2fr', gap: 24, alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 17, fontWeight: 650, letterSpacing: '-.01em', lineHeight: 1.3 }}>
-            <b style={{ fontFamily: 'monospace' }}>{stats.signalPct}%</b> of calls moved something forward.
-          </div>
-          <div style={{ fontSize: 11.5, color: 'var(--t2)', marginTop: 6 }}>
-            <b>{(stats.byBucket.gate + stats.byBucket.dead).toLocaleString()}</b> reached nobody who decides — about <b>{burnHours} hours</b>.
-            {stats.byBucket.meeting > 0 && <> <b>{stats.byBucket.meeting}</b> produced a meeting or files.</>}
-          </div>
-        </div>
-        <div>
-          <div style={{ display: 'flex', height: 24, borderRadius: 3, overflow: 'hidden', border: '.5px solid var(--border)', background: '#fff' }}>
-            {BUCKET_ORDER.map(b => stats.byBucket[b] > 0 && (
-              <span key={b} title={`${BUCKET_LABEL[b]}: ${stats.byBucket[b]}`} style={{ display: 'block', width: `${(stats.byBucket[b] / Math.max(1, stats.total)) * 100}%`, background: BUCKET_COLOR[b] }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--t2)', marginTop: 6 }}>
-            {BUCKET_ORDER.map(b => (
-              <span key={b}><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 1, marginRight: 5, background: BUCKET_COLOR[b] }} />{BUCKET_LABEL[b]} <b style={{ color: 'var(--text)' }}>{stats.byBucket[b]}</b></span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="sg sg6" style={{ marginBottom: 16 }}>
-        <div className="sc"><div className="sl">Attempts</div><div className="sv">{stats.total.toLocaleString()}</div><div className="ss">In selected period</div></div>
-        <div className="sc"><div className="sl">Firms</div><div className="sv">{stats.firms.toLocaleString()}</div><div className="ss">Contacted in period</div></div>
-        <div className="sc"><div className="sl">Signal</div><div className="sv" style={{ color: 'var(--green)' }}>{stats.signal.toLocaleString()}</div><div className="ss">{stats.signalPct}% of attempts</div></div>
-        <div className="sc"><div className="sl">Act today</div><div className="sv" style={{ color: 'var(--red)' }}>{byBand.act.length}</div><div className="ss">From yesterday's calls</div></div>
-        <div className="sc"><div className="sl">Owed in total</div><div className="sv">{queue.length}</div><div className="ss">Firms waiting on us</div></div>
-        <div className="sc"><div className="sl">Time burned</div><div className="sv" style={{ color: 'var(--red)' }}>{burnHours}h</div><div className="ss">Reached nobody</div></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 20, marginBottom: 20 }}>
