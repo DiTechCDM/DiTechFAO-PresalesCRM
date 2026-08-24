@@ -31,6 +31,19 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'custom', label: 'Custom' },
 ];
 
+/** Pure — shared by the page-level period filter and the export modal's
+ *  own range picker, so "pick a period" means the same thing in both places. */
+function computeRange(period: Period, customFrom: string, customTo: string): { from: string; to: string } {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const fmt = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
+  if (period === 'yesterday') { const y = new Date(t); y.setDate(y.getDate() - 1); const s = fmt(y); return { from: s, to: s }; }
+  if (period === '7d')  { const f = new Date(t); f.setDate(f.getDate() - 6);  return { from: fmt(f), to: TODAY }; }
+  if (period === '30d') { const f = new Date(t); f.setDate(f.getDate() - 29); return { from: fmt(f), to: TODAY }; }
+  if (period === 'month') return { from: TODAY.slice(0, 8) + '01', to: TODAY };
+  if (period === 'custom' && customFrom && customTo) return { from: customFrom, to: customTo };
+  return { from: '0000-01-01', to: '9999-12-31' };
+}
+
 function DismissModal({ card, onClose, onConfirm }: { card: QueueCard; onClose: () => void; onConfirm: (reason: string, notes: string) => Promise<void> | void }) {
   const [reason, setReason] = useState(DISMISS_REASONS[0]);
   const [notes, setNotes] = useState('');
@@ -78,6 +91,58 @@ function DismissModal({ card, onClose, onConfirm }: { card: QueueCard; onClose: 
   );
 }
 
+function ExportModal({ initialPeriod, initialFrom, initialTo, onClose, onConfirm }: {
+  initialPeriod: Period; initialFrom: string; initialTo: string;
+  onClose: () => void;
+  onConfirm: (period: Period, from: string, to: string) => void;
+}) {
+  const [period, setPeriod] = useState<Period>(initialPeriod);
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
+  const range = computeRange(period, from, to);
+
+  return (
+    <div className="mov" style={{ zIndex: 600 }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ width: 460 }} onClick={e => e.stopPropagation()}>
+        <div className="mhd">
+          <h2>Export to Excel</h2>
+          <button className="mx" onClick={onClose}>✕</button>
+        </div>
+        <div className="mbd" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="fg">
+            <label>Date range</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+              {PERIODS.map(p => (
+                <button key={p.key} type="button" onClick={() => setPeriod(p.key)}
+                  style={{ padding: '5px 12px', borderRadius: 14, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    border: `.5px solid ${period === p.key ? 'var(--brand)' : 'var(--border2)'}`,
+                    background: period === p.key ? 'var(--brand-light)' : '#fff',
+                    color: period === p.key ? 'var(--brand)' : 'var(--t2)' }}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {period === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input type="date" className="date-inp" value={from} max={to} onChange={e => setFrom(e.target.value)} />
+              <span style={{ fontSize: 11, color: 'var(--t2)' }}>to</span>
+              <input type="date" className="date-inp" value={to} min={from} max={TODAY} onChange={e => setTo(e.target.value)} />
+            </div>
+          )}
+          <div style={{ padding: '8px 12px', background: 'var(--s2)', borderRadius: 'var(--r)', fontSize: 11.5, color: 'var(--t2)' }}>
+            Will export firms whose route came in {period === 'all' ? 'across full history' : `${fmtDate(range.from)} – ${fmtDate(range.to)}`}, as 4 sheets — one per band, colour-coded to match the app.
+          </div>
+        </div>
+        <div className="mft">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn primary" onClick={() => onConfirm(period, from, to)}>↓ Export</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) => void }) {
   const { calls, hasPerm, scopeCalls, showToast } = useAppContext();
   const [dismissals, setDismissals] = useState<WorkQueueAction[]>([]);
@@ -88,6 +153,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const [customTo, setCustomTo] = useState(TODAY);
   const [dismissCard, setDismissCard] = useState<QueueCard | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const [expandedBands, setExpandedBands] = useState<Set<string>>(new Set());
   const toggleExpanded = (band: string) => setExpandedBands(prev => {
     const next = new Set(prev);
@@ -108,16 +174,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const reps = useMemo(() => Array.from(new Set(baseCalls.map(c => c.rep).filter(Boolean))).sort(), [baseCalls]);
   const repCalls = useMemo(() => repFilter ? baseCalls.filter(c => c.rep === repFilter) : baseCalls, [baseCalls, repFilter]);
 
-  const periodRange = useMemo(() => {
-    const t = new Date(); t.setHours(0, 0, 0, 0);
-    const fmt = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
-    if (period === 'yesterday') { const y = new Date(t); y.setDate(y.getDate() - 1); const s = fmt(y); return { from: s, to: s }; }
-    if (period === '7d')  { const f = new Date(t); f.setDate(f.getDate() - 6);  return { from: fmt(f), to: TODAY }; }
-    if (period === '30d') { const f = new Date(t); f.setDate(f.getDate() - 29); return { from: fmt(f), to: TODAY }; }
-    if (period === 'month') return { from: TODAY.slice(0, 8) + '01', to: TODAY };
-    if (period === 'custom' && customFrom && customTo) return { from: customFrom, to: customTo };
-    return { from: '0000-01-01', to: '9999-12-31' };
-  }, [period, customFrom, customTo]);
+  const periodRange = useMemo(() => computeRange(period, customFrom, customTo), [period, customFrom, customTo]);
 
   const periodCalls = useMemo(
     () => repCalls.filter(c => { const d = c.ts.split('T')[0]; return d >= periodRange.from && d <= periodRange.to; }),
@@ -153,13 +210,23 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
     [dismissals]
   );
 
-  const exportQueue = () => {
+  // Exporting is decoupled from whatever's currently on screen — the modal
+  // asks for its own range and this re-derives the queue from fullQueue for
+  // that range, same rule as the page-level filter (§5): membership/refusal/
+  // dismissal always resolve from full history, only the export's contents
+  // are scoped to the chosen range.
+  const doExport = (exportPeriod: Period, exportFrom: string, exportTo: string) => {
+    const range = computeRange(exportPeriod, exportFrom, exportTo);
+    const exportQueue = fullQueue.filter(c => c.lastSignalDate >= range.from && c.lastSignalDate <= range.to);
+    const exportByBand: Record<string, QueueCard[]> = { act: [], due: [], slip: [], cold: [] };
+    for (const c of exportQueue) exportByBand[c.band].push(c);
+
     const headers = ['Firm', 'Rep', 'Contact', 'Stage', 'Last Outcome', 'Outcome Date', 'Days Waiting', 'Tries Since', 'Note'];
     const sheets = BAND_ORDER.map(band => ({
       name: BAND_META[band].title,
       headerColor: BAND_COLOR_HEX[band],
       headers,
-      rows: byBand[band].slice().sort((a, b) => a.lastSignalDate.localeCompare(b.lastSignalDate)).map(c => ({
+      rows: exportByBand[band].slice().sort((a, b) => a.lastSignalDate.localeCompare(b.lastSignalDate)).map(c => ({
         'Firm': c.firmName,
         'Rep': c.rep,
         'Contact': c.who,
@@ -171,9 +238,10 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
         'Note': c.note,
       })),
     }));
-    const scope = period === 'all' ? 'AllTime' : `${periodRange.from}_to_${periodRange.to}`;
+    const scope = exportPeriod === 'all' ? 'AllTime' : `${range.from}_to_${range.to}`;
     exportBandedXlsx(sheets, `DiTechFAO_CallReports_${scope}_${TODAY}.xlsx`);
-    showToast(`Exported ${queue.length} firms across 4 sheets`, 'ok');
+    showToast(`Exported ${exportQueue.length} firms across 4 sheets`, 'ok');
+    setExportModalOpen(false);
   };
 
   const doDismiss = async (reason: string, notes: string) => {
@@ -219,7 +287,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
             </select>
           )}
           {hasPerm('export') && (
-            <button className="btn" onClick={exportQueue} disabled={queue.length === 0} title="Export the work queue currently shown below to Excel">↓ Export</button>
+            <button className="btn" onClick={() => setExportModalOpen(true)} disabled={fullQueue.length === 0} title="Choose a date range and export to Excel">↓ Export</button>
           )}
         </div>
       </div>
@@ -407,6 +475,16 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
 
       {dismissCard && (
         <DismissModal card={dismissCard} onClose={() => setDismissCard(null)} onConfirm={doDismiss} />
+      )}
+
+      {exportModalOpen && (
+        <ExportModal
+          initialPeriod={period}
+          initialFrom={periodRange.from}
+          initialTo={periodRange.to}
+          onClose={() => setExportModalOpen(false)}
+          onConfirm={doExport}
+        />
       )}
     </div>
   );
