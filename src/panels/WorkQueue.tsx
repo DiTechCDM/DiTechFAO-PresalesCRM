@@ -104,16 +104,6 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const reps = useMemo(() => Array.from(new Set(baseCalls.map(c => c.rep).filter(Boolean))).sort(), [baseCalls]);
   const repCalls = useMemo(() => repFilter ? baseCalls.filter(c => c.rep === repFilter) : baseCalls, [baseCalls, repFilter]);
 
-  // The queue always looks at full call history — the period filter below
-  // must never reach this. See work-queue-logic-spec.md §5.
-  const queue = useMemo(() => buildQueue(repCalls, dismissals, TODAY), [repCalls, dismissals]);
-  const byBand = useMemo(() => {
-    const g: Record<string, QueueCard[]> = { act: [], due: [], slip: [], cold: [] };
-    for (const c of queue) g[c.band].push(c);
-    for (const k of Object.keys(g)) g[k].sort((a, b) => a.lastSignalDate.localeCompare(b.lastSignalDate));
-    return g;
-  }, [queue]);
-
   const periodRange = useMemo(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const fmt = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' });
@@ -130,6 +120,27 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   );
   const stats = useMemo(() => computeStats(periodCalls), [periodCalls]);
   const repStats = useMemo(() => computeRepStats(periodCalls), [periodCalls]);
+
+  // Card membership, refusal, and dismissal are always resolved from FULL
+  // history — that logic must never be truncated by the period filter, or
+  // a firm's real state gets miscomputed (see work-queue-logic-spec.md §5/§6.2).
+  const fullQueue = useMemo(() => buildQueue(repCalls, dismissals, TODAY), [repCalls, dismissals]);
+
+  // What's DISPLAYED, though, is now filtered to cards whose triggering
+  // signal call falls in the period above — per request, the period filter
+  // now reaches the queue. Note the tradeoff: picking "Yesterday" will empty
+  // out Slipping/Gone cold, since by definition those firms weren't signalled
+  // yesterday. "All" behaves exactly like the old always-full-history queue.
+  const queue = useMemo(
+    () => fullQueue.filter(c => c.lastSignalDate >= periodRange.from && c.lastSignalDate <= periodRange.to),
+    [fullQueue, periodRange]
+  );
+  const byBand = useMemo(() => {
+    const g: Record<string, QueueCard[]> = { act: [], due: [], slip: [], cold: [] };
+    for (const c of queue) g[c.band].push(c);
+    for (const k of Object.keys(g)) g[k].sort((a, b) => a.lastSignalDate.localeCompare(b.lastSignalDate));
+    return g;
+  }, [queue]);
 
   // Dismissals aren't tagged by rep, so the rep filter doesn't narrow this list.
   const recentlyClosed = useMemo(
@@ -227,9 +238,9 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
         <div className="sc"><div className="sl">Time burned</div><div className="sv" style={{ color: 'var(--red)' }}>{burnHours}h</div><div className="ss">Reached nobody</div></div>
       </div>
 
-      {/* ── Work queue — four bands, always full history, unaffected by the period filter above ── */}
+      {/* ── Work queue — four bands, filtered to firms signalled in the period above ── */}
       <div className="page-hd" style={{ marginBottom: 8 }}>
-        <div><div className="page-title" style={{ fontSize: 15 }}>Work queue</div><div className="page-sub">Every firm that gave us a route, grouped by how long they've waited — always full history, regardless of the period filter above</div></div>
+        <div><div className="page-title" style={{ fontSize: 15 }}>Work queue</div><div className="page-sub">Firms grouped by how long they've waited since the route they gave us, in the {PERIODS.find(p => p.key === period)?.label.toLowerCase()} — pick "All" to see the full backlog regardless of when it came in</div></div>
       </div>
       <div className="sg sg4" style={{ marginBottom: 14 }}>
         {BAND_ORDER.map(b => (
