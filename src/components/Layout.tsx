@@ -17,6 +17,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
     { id: 'firms',     label: 'Firms DB',        ico: '🏢' },
     { id: 'calls',     label: 'Call Tracker',     ico: '📞' },
     { id: 'allcalls',  label: 'All Calls',        ico: '📋' },
+    { id: 'workqueue', label: 'Work Queue',       ico: '🎯' },
     { id: 'team',      label: 'Team KPIs',        ico: '📊' },
     { id: 'funnel',    label: 'Funnel & Revenue', ico: '📈' },
     { id: 'reminders', label: 'Reminders',        ico: '🔔' },
@@ -25,7 +26,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
 
   const groups = [
     { label: 'Database',  items: ['firms'] },
-    { label: 'Activity',  items: ['calls','allcalls','team'] },
+    { label: 'Activity',  items: ['calls','allcalls','workqueue','team'] },
     { label: 'Analytics', items: ['funnel'] },
     { label: 'Workspace', items: ['reminders'] },
     { label: 'System',    items: ['admin'] },

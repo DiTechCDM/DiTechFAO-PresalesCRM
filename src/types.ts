@@ -130,6 +130,18 @@ export interface Reminder {
   createdFrom?: 'call-tracker' | 'firms-db' | 'manual';
 }
 
+// Work Queue — a dismissal record (see work-queue-logic-spec.md §6.2):
+// a card leaves the queue when it's refused, fulfilled, or dismissed here.
+export interface WorkQueueAction {
+  id: string;
+  firmId: string;
+  firmName?: string;
+  reason: string;
+  notes?: string;
+  closedBy?: string;
+  closedAt: string;
+}
+
 export interface AdminSettings {
   active_fy: string;
   financial_years: FinancialYear[];

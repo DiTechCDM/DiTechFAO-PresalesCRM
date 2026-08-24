@@ -329,6 +329,31 @@ CREATE TABLE `audit_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+--  WORK QUEUE ACTIONS
+--  Dismissal log for the Work Queue module. A firm's card is
+--  computed live from `calls` (see server/routes/workQueue.js and
+--  src/lib/workQueue.ts) — this table only records when a user
+--  explicitly closes a card, and why. It does not reference or
+--  alter `calls`/`firms` in any way; the server also creates
+--  this table automatically on first boot if missing, so
+--  applying this file by hand is optional.
+-- ============================================================
+DROP TABLE IF EXISTS `work_queue_actions`;
+CREATE TABLE `work_queue_actions` (
+  `id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT (uuid()),
+  `firm_id` char(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `firm_name` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reason` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Other',
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `closed_by_id` char(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `closed_by_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `closed_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_wqa_firm` (`firm_id`),
+  KEY `idx_wqa_closed_at` (`closed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 --  DONE — No views included (the original dump had views with
 --  DEFINER=root@localhost which errors on Hostinger).
 -- ============================================================

@@ -383,5 +383,31 @@ ORDER BY rem.due_date ASC;
 
 
 -- ============================================================
+--  11. WORK QUEUE ACTIONS
+--  Dismissal log for the Work Queue module. A firm's card is
+--  computed live from calls (see server/routes/workQueue.js and
+--  src/lib/workQueue.ts) — this table only records when a user
+--  explicitly closes a card, and why. It does not reference or
+--  alter the calls/firms tables in any way; the server also
+--  creates this table automatically on first boot if missing,
+--  so applying this file by hand is optional.
+--  See work-queue-logic-spec.md §6.2.
+-- ============================================================
+CREATE TABLE work_queue_actions (
+  id              CHAR(36)     NOT NULL DEFAULT (UUID()),
+  firm_id         CHAR(36)     NOT NULL,
+  firm_name       VARCHAR(200) NULL,               -- denormalised — survives firm deletion
+  reason          VARCHAR(50)  NOT NULL DEFAULT 'Other', -- 'Meeting held', 'Refused', 'Not pursuing', 'Duplicate', 'Other'
+  notes           TEXT         NULL,
+  closed_by_id    CHAR(36)     NULL,
+  closed_by_name  VARCHAR(100) NULL,               -- denormalised
+  closed_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_wqa_firm      (firm_id),
+  INDEX idx_wqa_closed_at (closed_at)
+) ENGINE=InnoDB;
+
+
+-- ============================================================
 --  END OF SCHEMA
 -- ============================================================

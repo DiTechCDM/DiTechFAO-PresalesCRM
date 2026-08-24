@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import FirmsDB from './panels/FirmsDB';
 import CallTracker from './panels/CallTracker';
 import AllCalls from './panels/AllCalls';
+import WorkQueue from './panels/WorkQueue';
 import TeamKPIs from './panels/TeamKPIs';
 import FunnelRevenue from './panels/FunnelRevenue';
 import Admin from './panels/Admin';
@@ -245,6 +246,7 @@ function Main() {
         {panel === 'firms'     && <FirmsDB onLogCall={openDrawer} />}
         {panel === 'calls'     && <CallTracker onOpenEOD={() => { setEodPage(1); setEodOpen(true); }} />}
         {panel === 'allcalls'  && <AllCalls />}
+        {panel === 'workqueue' && <WorkQueue onLogCall={openDrawer} />}
         {panel === 'team'      && <TeamKPIs />}
         {panel === 'funnel'    && <FunnelRevenue />}
         {panel === 'reminders' && <Reminders />}

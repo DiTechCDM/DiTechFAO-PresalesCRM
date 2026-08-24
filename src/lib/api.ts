@@ -60,6 +60,14 @@ export const reminders = {
   remove: (id: string)         => request(`/reminders/${id}`, { method: 'DELETE' }),
 };
 
+/* ── Work Queue ── */
+export const workQueue = {
+  getAll:  ()                              => request<any[]>('/work-queue'),
+  dismiss: (a: { firmId: string; firmName?: string; reason: string; notes?: string }) =>
+    request<{ id: string }>('/work-queue', { method: 'POST', body: JSON.stringify(a) }),
+  reopen:  (id: string)                    => request(`/work-queue/${id}`, { method: 'DELETE' }),
+};
+
 /* ── Admin ── */
 export const admin = {
   getAll:       ()                                    => request<any>('/admin'),
