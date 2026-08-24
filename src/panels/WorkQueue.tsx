@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../store';
 import * as api from '../lib/api';
 import { TODAY, fmtDate, OC_LABELS } from '../lib/utils';
-import { exportToXlsx } from '../lib/xlsx';
+import { exportBandedXlsx } from '../lib/xlsx';
 import { WorkQueueAction } from '../types';
 import {
   BUCKET_ORDER, BUCKET_LABEL, BUCKET_COLOR,
-  BAND_ORDER, BAND_META, buildQueue, computeStats, computeRepStats,
+  BAND_ORDER, BAND_META, BAND_COLOR_HEX, buildQueue, computeStats, computeRepStats,
   DISMISS_REASONS, QueueCard,
 } from '../lib/workQueue';
 
@@ -154,25 +154,26 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   );
 
   const exportQueue = () => {
-    const headers = ['Band', 'Firm', 'Rep', 'Contact', 'Stage', 'Last Outcome', 'Outcome Date', 'Days Waiting', 'Tries Since', 'Note'];
-    const sorted = queue.slice().sort((a, b) =>
-      BAND_ORDER.indexOf(a.band) - BAND_ORDER.indexOf(b.band) || a.lastSignalDate.localeCompare(b.lastSignalDate)
-    );
-    const rows = sorted.map(c => ({
-      'Band': BAND_META[c.band].title,
-      'Firm': c.firmName,
-      'Rep': c.rep,
-      'Contact': c.who,
-      'Stage': c.stage,
-      'Last Outcome': OC_LABELS[c.lastSignalOc] || c.lastSignalOc,
-      'Outcome Date': c.lastSignalDate,
-      'Days Waiting': c.daysWaiting,
-      'Tries Since': c.attemptsSinceSignal,
-      'Note': c.note,
+    const headers = ['Firm', 'Rep', 'Contact', 'Stage', 'Last Outcome', 'Outcome Date', 'Days Waiting', 'Tries Since', 'Note'];
+    const sheets = BAND_ORDER.map(band => ({
+      name: BAND_META[band].title,
+      headerColor: BAND_COLOR_HEX[band],
+      headers,
+      rows: byBand[band].slice().sort((a, b) => a.lastSignalDate.localeCompare(b.lastSignalDate)).map(c => ({
+        'Firm': c.firmName,
+        'Rep': c.rep,
+        'Contact': c.who,
+        'Stage': c.stage,
+        'Last Outcome': OC_LABELS[c.lastSignalOc] || c.lastSignalOc,
+        'Outcome Date': c.lastSignalDate,
+        'Days Waiting': c.daysWaiting,
+        'Tries Since': c.attemptsSinceSignal,
+        'Note': c.note,
+      })),
     }));
     const scope = period === 'all' ? 'AllTime' : `${periodRange.from}_to_${periodRange.to}`;
-    exportToXlsx(headers, rows, `DiTechFAO_CallReports_${scope}_${TODAY}.xlsx`);
-    showToast(`Exported ${rows.length} firms`, 'ok');
+    exportBandedXlsx(sheets, `DiTechFAO_CallReports_${scope}_${TODAY}.xlsx`);
+    showToast(`Exported ${queue.length} firms across 4 sheets`, 'ok');
   };
 
   const doDismiss = async (reason: string, notes: string) => {

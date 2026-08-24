@@ -68,6 +68,12 @@ export const BAND_META: Record<Band, { title: string; why: string; badgeClass: s
   cold: { title: 'Gone cold',     why: 'Over 21 days. Re-qualify from scratch or take it off the list.',                 badgeClass: 'b-none' },
 };
 
+/** Same accent colours used on screen for each band (index.css --red/--amber/--blue/--t3),
+ *  as plain 6-hex RGB — for contexts like the Excel export that can't use CSS vars. */
+export const BAND_COLOR_HEX: Record<Band, string> = {
+  act: 'A32D2D', due: '854F0B', slip: '185FA5', cold: '8A8A86',
+};
+
 const DAY_MS = 86400000;
 function toDateStr(ts: string) { return (ts || '').split('T')[0]; }
 function daysBetween(fromDate: string, toDate: string) {

@@ -356,6 +356,211 @@ export function exportToXlsx(headers: string[], rows: Record<string, unknown>[],
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// ─── Multi-sheet export with a coloured header row per sheet ─────────────────
+// Fully self-contained — does not share code with buildXlsx()/exportToXlsx()
+// above, so this can't affect the existing Firms DB / Reminders exports.
+// Same OOXML approach (stored/uncompressed ZIP), extended with a minimal
+// xl/styles.xml so each sheet's header row can carry its own fill colour.
+
+export interface XlsxSheet {
+  name: string;                    // becomes the tab name — Excel caps this at 31 chars
+  headers: string[];
+  rows: Record<string, unknown>[];
+  headerColor?: string;            // 6-hex RGB, e.g. 'A32D2D' — omit for no fill
+}
+
+function buildBandedXlsx(sheets: XlsxSheet[]): Blob {
+  // One shared strings table across every sheet (standard OOXML behaviour).
+  const strings: string[] = [];
+  const strIdx: Record<string, number> = {};
+  const si = (v: unknown) => {
+    const s = String(v ?? '');
+    if (!(s in strIdx)) { strIdx[s] = strings.length; strings.push(s); }
+    return strIdx[s];
+  };
+  sheets.forEach(sh => {
+    sh.headers.forEach(h => si(h));
+    sh.rows.forEach(r => sh.headers.forEach(h => {
+      const v = r[h];
+      if (v != null && v !== '' && typeof v !== 'number') si(v);
+    }));
+  });
+  const ssXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${strings.length}" uniqueCount="${strings.length}">
+${strings.map(s => `<si><t xml:space="preserve">${xmlEscape(s)}</t></si>`).join('\n')}
+</sst>`;
+
+  // Styles: index 0 is the required default. One additional cellXfs entry
+  // per DISTINCT header colour actually used, each pairing a solid fill
+  // with a bold white font. Sheets with no headerColor use style 0 (no fill).
+  const distinctColors = Array.from(new Set(sheets.map(s => s.headerColor).filter((c): c is string => !!c)));
+  const colorStyleIndex: Record<string, number> = {};
+  distinctColors.forEach((c, i) => { colorStyleIndex[c] = i + 1; }); // 0 is reserved for default
+
+  const customFills = distinctColors.map(c =>
+    `<fill><patternFill patternType="solid"><fgColor rgb="FF${c.toUpperCase()}"/><bgColor indexed="64"/></patternFill></fill>`
+  ).join('');
+  const fillsXml = `<fills count="${2 + distinctColors.length}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${customFills}</fills>`;
+  const fontsXml = `<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><name val="Calibri"/><b/><color rgb="FFFFFFFF"/></font></fonts>`;
+  const bordersXml = `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>`;
+  const headerXfs = distinctColors.map((c, i) =>
+    `<xf numFmtId="0" fontId="1" fillId="${2 + i}" borderId="0" xfId="0" applyFill="1" applyFont="1"/>`
+  ).join('');
+  const cellXfsXml = `<cellXfs count="${1 + distinctColors.length}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>${headerXfs}</cellXfs>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+${fontsXml}
+${fillsXml}
+${bordersXml}
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+${cellXfsXml}
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+  // One worksheet XML per sheet
+  const sheetXmls = sheets.map(sh => {
+    const headerStyle = sh.headerColor ? colorStyleIndex[sh.headerColor] : 0;
+    const allRows = [sh.headers, ...sh.rows.map(r => sh.headers.map(h => r[h]))];
+    const wsRows = allRows.map((row, ri) =>
+      `<row r="${ri + 1}">${(row as unknown[]).map((v, ci) => {
+        const ref = `${colLetter(ci)}${ri + 1}`;
+        const sAttr = ri === 0 && headerStyle ? ` s="${headerStyle}"` : '';
+        if (v != null && v !== '' && typeof v === 'number') {
+          return `<c r="${ref}"${sAttr}><v>${v}</v></c>`;
+        }
+        const idx = si(v);
+        return `<c r="${ref}"${sAttr} t="s"><v>${idx}</v></c>`;
+      }).join('')}</row>`
+    ).join('\n');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetData>${wsRows}</sheetData>
+</worksheet>`;
+  });
+
+  const n = sheets.length;
+  const wbXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets>${sheets.map((sh, i) => `<sheet name="${xmlEscape(sh.name.slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>
+</workbook>`;
+
+  // rIds 1..n are the sheets, n+1 is sharedStrings, n+2 is styles
+  const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('\n')}
+<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
+<Relationship Id="rId${n + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const pkgRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('\n')}
+<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+  const enc = new TextEncoder();
+  const entries: Array<{ name: string; data: Uint8Array }> = [
+    { name: '[Content_Types].xml',        data: enc.encode(contentTypes) },
+    { name: '_rels/.rels',                data: enc.encode(pkgRels) },
+    { name: 'xl/workbook.xml',            data: enc.encode(wbXml) },
+    { name: 'xl/_rels/workbook.xml.rels', data: enc.encode(wbRels) },
+    ...sheets.map((_, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: enc.encode(sheetXmls[i]) })),
+    { name: 'xl/sharedStrings.xml',       data: enc.encode(ssXml) },
+    { name: 'xl/styles.xml',              data: enc.encode(stylesXml) },
+  ];
+
+  // Pack into a ZIP (stored, no compression) — same mechanical routine as
+  // buildXlsx() above, duplicated rather than shared so this stays fully
+  // self-contained and can't regress the existing single-sheet export path.
+  const parts: Uint8Array[] = [];
+  const centralDir: Uint8Array[] = [];
+  let offset = 0;
+
+  const u16 = (v: number) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, v, true); return b; };
+  const u32 = (v: number) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, v, true); return b; };
+
+  const crcTable = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c;
+    }
+    return t;
+  })();
+  const crc32 = (data: Uint8Array) => {
+    let crc = 0xFFFFFFFF;
+    for (const b of data) crc = crcTable[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  };
+
+  for (const entry of entries) {
+    const nameBytes = enc.encode(entry.name);
+    const crc = crc32(entry.data);
+    const size = entry.data.length;
+
+    const lfh = new Uint8Array([
+      0x50, 0x4B, 0x03, 0x04,
+      ...u16(20), ...u16(0), ...u16(0),
+      ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(size), ...u32(size),
+      ...u16(nameBytes.length), ...u16(0),
+    ]);
+    parts.push(lfh, nameBytes, entry.data);
+
+    const cde = new Uint8Array([
+      0x50, 0x4B, 0x01, 0x02,
+      ...u16(20), ...u16(20),
+      ...u16(0), ...u16(0),
+      ...u16(0), ...u16(0),
+      ...u32(crc), ...u32(size), ...u32(size),
+      ...u16(nameBytes.length),
+      ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(offset),
+    ]);
+    centralDir.push(cde, nameBytes);
+    offset += lfh.length + nameBytes.length + size;
+  }
+
+  const cdOffset = offset;
+  const cdSize = centralDir.reduce((s, b) => s + b.length, 0);
+  const eocd = new Uint8Array([
+    0x50, 0x4B, 0x05, 0x06,
+    ...u16(0), ...u16(0),
+    ...u16(entries.length), ...u16(entries.length),
+    ...u32(cdSize), ...u32(cdOffset), ...u16(0),
+  ]);
+
+  const all = [...parts, ...centralDir, eocd];
+  const total = all.reduce((s, b) => s + b.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const b of all) { out.set(b, pos); pos += b.length; }
+
+  return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+/** Multi-sheet .xlsx export — one tab per entry in `sheets`, each with its
+ *  own optional header-row fill colour. See buildBandedXlsx() above. */
+export function exportBandedXlsx(sheets: XlsxSheet[], filename: string): void {
+  const blob = buildBandedXlsx(sheets);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /** Also provide a CSV fallback for users who prefer it */
 export function exportToCSV(headers: string[], rows: Record<string, unknown>[], filename: string): void {
   const lines = [rowToCSV(headers), ...rows.map(r => rowToCSV(headers.map(h => r[h])))];
