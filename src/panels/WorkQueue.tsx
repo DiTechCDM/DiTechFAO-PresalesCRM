@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../store';
 import * as api from '../lib/api';
 import { TODAY, fmtDate, OC_LABELS } from '../lib/utils';
+import { exportToXlsx } from '../lib/xlsx';
 import { WorkQueueAction } from '../types';
 import {
   BUCKET_ORDER, BUCKET_LABEL, BUCKET_COLOR,
@@ -152,6 +153,28 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
     [dismissals]
   );
 
+  const exportQueue = () => {
+    const headers = ['Band', 'Firm', 'Rep', 'Contact', 'Stage', 'Last Outcome', 'Outcome Date', 'Days Waiting', 'Tries Since', 'Note'];
+    const sorted = queue.slice().sort((a, b) =>
+      BAND_ORDER.indexOf(a.band) - BAND_ORDER.indexOf(b.band) || a.lastSignalDate.localeCompare(b.lastSignalDate)
+    );
+    const rows = sorted.map(c => ({
+      'Band': BAND_META[c.band].title,
+      'Firm': c.firmName,
+      'Rep': c.rep,
+      'Contact': c.who,
+      'Stage': c.stage,
+      'Last Outcome': OC_LABELS[c.lastSignalOc] || c.lastSignalOc,
+      'Outcome Date': c.lastSignalDate,
+      'Days Waiting': c.daysWaiting,
+      'Tries Since': c.attemptsSinceSignal,
+      'Note': c.note,
+    }));
+    const scope = period === 'all' ? 'AllTime' : `${periodRange.from}_to_${periodRange.to}`;
+    exportToXlsx(headers, rows, `DiTechFAO_CallReports_${scope}_${TODAY}.xlsx`);
+    showToast(`Exported ${rows.length} firms`, 'ok');
+  };
+
   const doDismiss = async (reason: string, notes: string) => {
     if (!dismissCard) return;
     try {
@@ -187,12 +210,17 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
           <div className="page-title">Call Reports</div>
           <div className="page-sub">Every firm that gave us a route and is waiting on a reply, sorted by how long they've waited</div>
         </div>
-        {viewAll && (
-          <select value={repFilter} onChange={e => setRepFilter(e.target.value)} style={{ maxWidth: 180 }}>
-            <option value="">All reps</option>
-            {reps.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {viewAll && (
+            <select value={repFilter} onChange={e => setRepFilter(e.target.value)} style={{ maxWidth: 180 }}>
+              <option value="">All reps</option>
+              {reps.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          )}
+          {hasPerm('export') && (
+            <button className="btn" onClick={exportQueue} disabled={queue.length === 0} title="Export the work queue currently shown below to Excel">↓ Export</button>
+          )}
+        </div>
       </div>
 
       {dismissError && (
