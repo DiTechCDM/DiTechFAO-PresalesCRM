@@ -247,11 +247,38 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
         <span style={{ fontSize: 11, color: 'var(--t2)' }}>{stats.total.toLocaleString()} attempts</span>
       </div>
 
-      <div className="sg sg4" style={{ marginBottom: 16 }}>
+      {/* ── Verdict strip ── */}
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px,1.3fr) 2fr', gap: 24, alignItems: 'center', marginTop: 12, marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 650, letterSpacing: '-.01em', lineHeight: 1.3 }}>
+            <b style={{ fontFamily: 'monospace' }}>{stats.signalPct}%</b> of calls moved something forward.
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--t2)', marginTop: 6 }}>
+            <b>{(stats.byBucket.gate + stats.byBucket.dead).toLocaleString()}</b> reached nobody who decides — about <b>{burnHours} hours</b>.
+            {stats.byBucket.meeting > 0 && <> <b>{stats.byBucket.meeting}</b> produced a meeting or files.</>}
+          </div>
+        </div>
+        <div>
+          <div style={{ display: 'flex', height: 24, borderRadius: 3, overflow: 'hidden', border: '.5px solid var(--border)', background: '#fff' }}>
+            {BUCKET_ORDER.map(b => stats.byBucket[b] > 0 && (
+              <span key={b} title={`${BUCKET_LABEL[b]}: ${stats.byBucket[b]}`} style={{ display: 'block', width: `${(stats.byBucket[b] / Math.max(1, stats.total)) * 100}%`, background: BUCKET_COLOR[b] }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 14px', fontFamily: 'monospace', fontSize: 10, color: 'var(--t2)', marginTop: 6 }}>
+            {BUCKET_ORDER.map(b => (
+              <span key={b}><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 1, marginRight: 5, background: BUCKET_COLOR[b] }} />{BUCKET_LABEL[b]} <b style={{ color: 'var(--text)' }}>{stats.byBucket[b]}</b></span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="sg sg6" style={{ marginBottom: 16 }}>
         <div className="sc"><div className="sl">Attempts</div><div className="sv">{stats.total.toLocaleString()}</div><div className="ss">In selected period</div></div>
-        <div className="sc"><div className="sl">Signal</div><div className="sv" style={{ color: 'var(--green)' }}>{stats.signal.toLocaleString()}</div><div className="ss">Moved something forward</div></div>
-        <div className="sc"><div className="sl">Signal rate</div><div className="sv">{stats.signalPct}%</div><div className="ss">Of attempts in period</div></div>
-        <div className="sc"><div className="sl">Time burned</div><div className="sv" style={{ color: 'var(--red)' }}>{burnHours}h</div><div className="ss">Reached nobody who decides</div></div>
+        <div className="sc"><div className="sl">Firms</div><div className="sv">{stats.firms.toLocaleString()}</div><div className="ss">Contacted in period</div></div>
+        <div className="sc"><div className="sl">Signal</div><div className="sv" style={{ color: 'var(--green)' }}>{stats.signal.toLocaleString()}</div><div className="ss">{stats.signalPct}% of attempts</div></div>
+        <div className="sc"><div className="sl">Act today</div><div className="sv" style={{ color: 'var(--red)' }}>{byBand.act.length}</div><div className="ss">From yesterday's calls</div></div>
+        <div className="sc"><div className="sl">Owed in total</div><div className="sv">{queue.length}</div><div className="ss">Firms waiting on us</div></div>
+        <div className="sc"><div className="sl">Time burned</div><div className="sv" style={{ color: 'var(--red)' }}>{burnHours}h</div><div className="ss">Reached nobody</div></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 20, marginBottom: 20 }}>

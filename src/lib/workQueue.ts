@@ -178,6 +178,7 @@ export function buildQueue(calls: Call[], dismissals: WorkQueueAction[], today: 
 
 export interface OutcomeStats {
   total: number;
+  firms: number;
   byBucket: Record<OutcomeBucket, number>;
   signal: number;
   signalPct: number;
@@ -192,12 +193,17 @@ const MINUTES_PER_CALL = 3; // §7 — confirm with pre-sales if this should cha
  *  moment someone picks "Yesterday". */
 export function computeStats(periodCalls: Call[]): OutcomeStats {
   const byBucket: Record<OutcomeBucket, number> = { meeting: 0, dm: 0, email: 0, no: 0, gate: 0, dead: 0 };
-  for (const c of periodCalls) byBucket[bucketOf(c.oc)]++;
+  const firmSet = new Set<string>();
+  for (const c of periodCalls) {
+    byBucket[bucketOf(c.oc)]++;
+    const fk = firmKey(c);
+    if (fk) firmSet.add(fk);
+  }
   const signal = byBucket.meeting + byBucket.dm + byBucket.email;
   const total = periodCalls.length;
   const burn = byBucket.gate + byBucket.dead;
   return {
-    total, byBucket, signal,
+    total, firms: firmSet.size, byBucket, signal,
     signalPct: total ? Math.round((signal / total) * 1000) / 10 : 0,
     minutesBurned: Math.round(burn * MINUTES_PER_CALL),
   };
