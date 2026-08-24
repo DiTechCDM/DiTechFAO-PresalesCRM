@@ -82,7 +82,7 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const [dismissals, setDismissals] = useState<WorkQueueAction[]>([]);
   const [dismissError, setDismissError] = useState(false);
   const [repFilter, setRepFilter] = useState('');
-  const [period, setPeriod] = useState<Period>('7d');
+  const [period, setPeriod] = useState<Period>('30d');
   const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Kolkata' }); });
   const [customTo, setCustomTo] = useState(TODAY);
   const [dismissCard, setDismissCard] = useState<QueueCard | null>(null);
