@@ -84,6 +84,12 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
   const [period, setPeriod] = useState<Period>('7d');
   const [dismissCard, setDismissCard] = useState<QueueCard | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedBands, setExpandedBands] = useState<Set<string>>(new Set());
+  const toggleExpanded = (band: string) => setExpandedBands(prev => {
+    const next = new Set(prev);
+    next.has(band) ? next.delete(band) : next.add(band);
+    return next;
+  });
 
   const viewAll = hasPerm('viewAll');
 
@@ -191,7 +197,8 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 14, marginBottom: 22 }}>
         {BAND_ORDER.map(band => {
-          const cards = byBand[band].slice(0, 100);
+          const expanded = expandedBands.has(band);
+          const cards = expanded ? byBand[band] : byBand[band].slice(0, 100);
           const overflow = byBand[band].length - cards.length;
           const accent = band === 'act' ? 'var(--red)' : band === 'due' ? 'var(--amber)' : band === 'slip' ? 'var(--blue)' : 'var(--t3)';
           return (
@@ -228,7 +235,12 @@ export default function WorkQueue({ onLogCall }: { onLogCall?: (firmId: string) 
                     </div>
                   </div>
                 ))}
-                {overflow > 0 && <div style={{ textAlign: 'center', fontSize: 10.5, color: 'var(--t3)', padding: '4px 0' }}>+{overflow} more</div>}
+                {overflow > 0 && (
+                  <button className="btn xs" onClick={() => toggleExpanded(band)} style={{ width: '100%', color: 'var(--blue)' }}>+{overflow} more — show all</button>
+                )}
+                {expanded && byBand[band].length > 100 && (
+                  <button className="btn xs" onClick={() => toggleExpanded(band)} style={{ width: '100%', color: 'var(--t3)' }}>Show fewer</button>
+                )}
               </div>
             </div>
           );
