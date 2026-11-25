@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../store';
 import { Menu } from 'lucide-react';
+import FollowUpAlerts from './FollowUpAlerts';
+import { requestOpenFirm, requestView } from '../lib/followups';
 
 export default function Layout({ children, currentPanel, setPanel }: any) {
   const { admin, logout, reminders } = useAppContext();
@@ -17,6 +19,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
     { id: 'firms',     label: 'Firms DB',        ico: '🏢' },
     { id: 'calls',     label: 'Call Tracker',     ico: '📞' },
     { id: 'allcalls',  label: 'All Calls',        ico: '📋' },
+    { id: 'allcalls2', label: 'All Calls (new)',  ico: '🆕' },
     { id: 'workqueue', label: 'Call Reports',     ico: '🎯' },
     { id: 'team',      label: 'Team KPIs',        ico: '📊' },
     { id: 'funnel',    label: 'Funnel & Revenue', ico: '📈' },
@@ -26,7 +29,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
 
   const groups = [
     { label: 'Database',  items: ['firms'] },
-    { label: 'Activity',  items: ['calls','allcalls','workqueue','team'] },
+    { label: 'Activity',  items: ['calls','allcalls','allcalls2','workqueue','team'] },
     { label: 'Analytics', items: ['funnel'] },
     { label: 'Workspace', items: ['reminders'] },
     { label: 'System',    items: ['admin'] },
@@ -98,6 +101,13 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
           {children}
         </div>
       </div>
+
+      {/* Follow-up pop-ups (new All Calls work) — self-contained, fails silently */}
+      <FollowUpAlerts onOpenFirm={(firmId, view) => {
+        if (view) requestView(view);
+        if (firmId) requestOpenFirm(firmId);
+        setPanel('allcalls2');
+      }} />
     </>
   );
 }

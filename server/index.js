@@ -20,6 +20,7 @@ import reminderRoutes from './routes/reminders.js';
 import adminRoutes from './routes/admin.js';
 import auditRoutes from './routes/audit.js';
 import workQueueRoutes from './routes/workQueue.js';
+import followupRoutes from './routes/followups.js'; // new All Calls page (/all-calls)
 
 const app = express();
 app.use(cors());
@@ -35,6 +36,7 @@ app.use('/api/reminders', verifyToken, reminderRoutes);
 app.use('/api/admin', verifyToken, adminRoutes);
 app.use('/api/audit', verifyToken, auditRoutes);
 app.use('/api/work-queue', verifyToken, workQueueRoutes);
+app.use('/api/followups', verifyToken, followupRoutes);
 
 // Health check — also tests DB + audit insert
 app.get('/api/health', async (_req, res) => {

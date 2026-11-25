@@ -10,12 +10,27 @@ import TeamKPIs from './panels/TeamKPIs';
 import FunnelRevenue from './panels/FunnelRevenue';
 import Admin from './panels/Admin';
 import Reminders from './panels/Reminders';
+import AllCallsV2 from './panels/AllCallsV2'; // new All Calls page, served at /all-calls
 import { OC_LABELS, OC_COLORS, TYPE_LBL, STAGE_BG, uid, fmtDate, TODAY } from './lib/utils';
 import { Call, Reminder } from './types';
 
 function Main() {
   const { currentUser, firms, setFirms, calls, setCalls, reminders, admin, showToast, isRep, getActiveFYKpi, scopeCalls, loading } = useAppContext();
-  const [panel, setPanel] = useState('firms');
+  // /all-calls opens the new All Calls page; every other URL behaves exactly as before.
+  const [panel, setPanel] = useState(() => window.location.pathname.replace(/\/+$/, '') === '/all-calls' ? 'allcalls2' : 'firms');
+  useEffect(() => {
+    const onNewPage = window.location.pathname.replace(/\/+$/, '') === '/all-calls';
+    if (panel === 'allcalls2' && !onNewPage) window.history.pushState(null, '', '/all-calls');
+    else if (panel !== 'allcalls2' && onNewPage) window.history.pushState(null, '', '/');
+  }, [panel]);
+  useEffect(() => {
+    const onPop = () => {
+      const onNewPage = window.location.pathname.replace(/\/+$/, '') === '/all-calls';
+      setPanel(p => onNewPage ? 'allcalls2' : (p === 'allcalls2' ? 'firms' : p));
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [drawerFirmId, setDrawerFirmId] = useState<string | null>(null);
   const [drContact, setDrContact] = useState('');
   const [drType, setDrType] = useState('call');
@@ -246,6 +261,7 @@ function Main() {
         {panel === 'firms'     && <FirmsDB onLogCall={openDrawer} />}
         {panel === 'calls'     && <CallTracker onOpenEOD={() => { setEodPage(1); setEodOpen(true); }} />}
         {panel === 'allcalls'  && <AllCalls />}
+        {panel === 'allcalls2' && <AllCallsV2 />}
         {panel === 'workqueue' && <WorkQueue onLogCall={openDrawer} />}
         {panel === 'team'      && <TeamKPIs />}
         {panel === 'funnel'    && <FunnelRevenue />}

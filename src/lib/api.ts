@@ -68,6 +68,16 @@ export const workQueue = {
   reopen:  (id: string)                    => request(`/work-queue/${id}`, { method: 'DELETE' }),
 };
 
+/* ── Follow-ups (new All Calls page) ── */
+export interface HistoryEntry { at: string; by: string; text: string }
+export const followups = {
+  meta:      () => request<{ migrated: boolean; history: Record<string, HistoryEntry[]>; goodLeads: string[] }>('/followups/meta'),
+  log:       (reminderId: string, text: string) =>
+    request<HistoryEntry>(`/followups/reminders/${reminderId}/history`, { method: 'POST', body: JSON.stringify({ text }) }),
+  goodLead:  (firmId: string, value: boolean) =>
+    request(`/followups/firms/${firmId}/good-lead`, { method: 'PUT', body: JSON.stringify({ value }) }),
+};
+
 /* ── Admin ── */
 export const admin = {
   getAll:       ()                                    => request<any>('/admin'),
