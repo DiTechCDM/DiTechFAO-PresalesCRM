@@ -387,7 +387,7 @@ export default function AllCallsV2() {
           <button className="ac2-btn" onClick={() => shiftClock(60)}>+1 hour</button>
           <button className="ac2-btn" onClick={() => jumpClock('16:50')}>Jump to 4:50 PM</button>
           <button className="ac2-btn" onClick={() => jumpClock('17:00')}>Jump to 5:00 PM</button>
-          <button className="ac2-link" onClick={() => { setClockOffset(0); setClockOpen(false); }}>Back to real time</button>
+          <button className="ac2-btn primary" onClick={() => { setClockOffset(0); setClockOpen(false); }}>Back to real time</button>
           <span className="note">
             {testing ? 'Only your screen sees this time. Saving is paused until you go back to real time.' : 'Admin only · moves time on your screen to watch reminders fire.'}
           </span>
@@ -409,7 +409,15 @@ export default function AllCallsV2() {
             </>
           )}
           {isAdminUser && !clockOpen && !testing && (
-            <button className="ac2-link" onClick={() => setClockOpen(true)} title="Admin only: move time on your screen to test reminders">🕒 Test clock</button>
+            <>
+              <span className="ac2-divider" aria-hidden="true" />
+              <button className="ac2-clock-btn" onClick={() => setClockOpen(true)} title="Admin only: move time on your screen to test reminders">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+                </svg>
+                Test clock
+              </button>
+            </>
           )}
         </div>
       </div>

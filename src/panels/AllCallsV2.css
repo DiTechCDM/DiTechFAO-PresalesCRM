@@ -63,7 +63,12 @@
 .ac2-clock .lbl{font-weight:700;color:#7A5300}
 .ac2-clock .now{font-weight:700;min-width:150px}
 .ac2-clock .ac2-btn{border-color:#E0C27A}
-.ac2-clock .ac2-link{color:#7A5300}
+.ac2-clock .ac2-btn.primary{background:#7A5300;border-color:#7A5300;color:#fff}
+.ac2-clock .ac2-btn.primary:hover{background:#5E4000}
+.ac2-divider{width:1px;height:22px;background:var(--border2);margin:0 4px}
+.ac2-clock-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #E0C27A;background:#FFF8E6;color:#7A5300;border-radius:999px;padding:5px 12px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.ac2-clock-btn:hover{background:#FCEFC9;border-color:#C99A2E}
+.ac2-clock-btn:focus-visible{outline:2px solid #C99A2E;outline-offset:2px}
 .ac2-clock .note{color:#7A5300}
 .ac2-empty{padding:28px;text-align:center;color:var(--t3);font-style:italic}
 .ac2-pager{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:.5px solid var(--border);font-size:12px;color:var(--t2)}
