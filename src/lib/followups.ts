@@ -83,14 +83,30 @@ export function firmTz(f?: Firm) {
   return /ireland|dublin|cork|galway|limerick|\.ie\b/i.test(s) ? 'Europe/Dublin' : 'Europe/London';
 }
 
-/** Ticking clock for live statuses. */
+/* ── Admin test clock ─────────────────────────────────────────
+   Lets Admin move "now" in their own browser tab to watch reminders
+   fire. Only affects what this tab displays; the page disables every
+   save while it's moved, so nothing is ever stored with a fake time. */
+const CLOCK_KEY = 'ac2_clock_offset';
+export function clockOffset(): number {
+  try { return Number(sessionStorage.getItem(CLOCK_KEY)) || 0; } catch { return 0; }
+}
+export function setClockOffset(ms: number) {
+  if (ms) sessionStorage.setItem(CLOCK_KEY, String(Math.round(ms)));
+  else sessionStorage.removeItem(CLOCK_KEY);
+  window.dispatchEvent(new Event('ac2:clock'));
+}
+
+/** Ticking clock for live statuses (includes the Admin test-clock offset). */
 export function useNow(intervalMs = 20_000) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now() + clockOffset());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), intervalMs);
-    const vis = () => { if (!document.hidden) setNow(Date.now()); };
+    const tick = () => setNow(Date.now() + clockOffset());
+    const t = setInterval(tick, intervalMs);
+    const vis = () => { if (!document.hidden) tick(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); };
+    window.addEventListener('ac2:clock', tick);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); window.removeEventListener('ac2:clock', tick); };
   }, [intervalMs]);
   return now;
 }

@@ -11,6 +11,7 @@ import FunnelRevenue from './panels/FunnelRevenue';
 import Admin from './panels/Admin';
 import Reminders from './panels/Reminders';
 import AllCallsV2 from './panels/AllCallsV2'; // new All Calls page, served at /all-calls
+import { requestOpenFirm } from './lib/followups';
 import { OC_LABELS, OC_COLORS, TYPE_LBL, STAGE_BG, uid, fmtDate, TODAY } from './lib/utils';
 import { Call, Reminder } from './types';
 
@@ -428,7 +429,7 @@ function Main() {
                         Showing {pageStart + 1}–{Math.min(pageStart + DR_PER_PAGE, drawerCalls.length)} of {drawerCalls.length}
                       </span>
                       <button
-                        onClick={() => { setPanel('allcalls'); closeDrawer(); }}
+                        onClick={() => { if (drawerFirmId) requestOpenFirm(drawerFirmId); setPanel('allcalls2'); closeDrawer(); }}
                         style={{ fontSize: 10, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
                         See all in All Calls →

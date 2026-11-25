@@ -57,6 +57,14 @@
 .ac2-btn.primary:hover{background:var(--brand2);color:#fff}
 .ac2-btn.primary:disabled{background:#C9CBE0;border-color:#C9CBE0;cursor:default}
 .ac2-btn.lg{padding:9px 14px;font-size:13px;border-radius:8px}
+.ac2-btn:disabled{opacity:.45;cursor:default}
+.ac2-link{border:none;background:none;padding:4px 6px;font:inherit;font-size:12px;color:var(--blue);text-decoration:underline;cursor:pointer}
+.ac2-clock{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#FFF8E6;border:1px dashed #E0B44C;border-radius:var(--r);padding:8px 12px;font-size:12.5px}
+.ac2-clock .lbl{font-weight:700;color:#7A5300}
+.ac2-clock .now{font-weight:700;min-width:150px}
+.ac2-clock .ac2-btn{border-color:#E0C27A}
+.ac2-clock .ac2-link{color:#7A5300}
+.ac2-clock .note{color:#7A5300}
 .ac2-empty{padding:28px;text-align:center;color:var(--t3);font-style:italic}
 .ac2-pager{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:.5px solid var(--border);font-size:12px;color:var(--t2)}
 

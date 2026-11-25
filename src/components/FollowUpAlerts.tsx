@@ -11,12 +11,12 @@
    Wrapped in an error boundary: if anything in here throws,
    it renders nothing and the rest of the CRM is unaffected.
    ════════════════════════════════════════════════════════════════ */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../store';
 import { Reminder } from '../types';
 import {
   useNow, fuStatus, dueMs, hasTime, fmtClock, fmtDur, whenLabel, withDueDeliberate, snoozeTarget, logHistory,
-  myRepName, isEscalationViewer, dismissedSet, dismiss, MIN,
+  myRepName, isEscalationViewer, dismissedSet, dismiss, MIN, clockOffset, setClockOffset,
 } from '../lib/followups';
 import '../panels/AllCallsV2.css';
 
@@ -26,7 +26,12 @@ function Alerts({ onOpenFirm }: Props) {
   const { currentUser, admin, reminders, setReminders, calls, firms, showToast } = useAppContext();
   const now = useNow(20_000);
   const [, bump] = useState(0);
+  // The test clock is Admin-only: clear it if someone else signs in on this tab.
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'admin' && clockOffset()) setClockOffset(0);
+  }, [currentUser]);
   if (!currentUser) return null;
+  const testing = clockOffset() !== 0;
 
   const me = myRepName(currentUser, admin.reps);
   const team = isEscalationViewer(currentUser); // Admin only
@@ -41,8 +46,11 @@ function Alerts({ onOpenFirm }: Props) {
     const st = fuStatus(r, now, calls);
     const base = `${r.id}:${r.dueDate}T${(r.dueTime || '').slice(0, 5)}:`;
     const mine = r.rep === me;
-    if (mine && (st.k === 'soon' || st.k === 'due')) {
-      items.push({ r, key: base + st.k, kind: st.k === 'due' ? 'Call now' : `Reminder · in ${Math.ceil((due - now) / MIN)} min`, tone: st.k === 'due' ? '#E8590C' : '#E0A100', cta: 'Open & call' });
+    // With the test clock on, Admin previews every rep's reminders (labelled with the rep).
+    const preview = team && testing && !mine;
+    if ((mine || preview) && (st.k === 'soon' || st.k === 'due')) {
+      const kind = (st.k === 'due' ? 'Call now' : `Reminder · in ${Math.ceil((due - now) / MIN)} min`) + (preview ? ` · ${r.rep || 'unassigned'}'s pop-up` : '');
+      items.push({ r, key: base + st.k + (preview ? '-preview' : ''), kind, tone: st.k === 'due' ? '#E8590C' : '#E0A100', cta: 'Open & call' });
     } else if (st.k === 'missed' && mine) {
       items.push({ r, key: base + 'missed', kind: 'You missed this follow-up', tone: '#A32D2D', cta: 'Call now' });
     } else if (st.k === 'missed' && team) {
@@ -79,7 +87,8 @@ function Alerts({ onOpenFirm }: Props) {
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button className="ac2-btn primary" onClick={() => onOpenFirm(r.firmId || null)}>{cta}</button>
-              <button className="ac2-btn" onClick={() => snooze(r)}>Snooze 15 min</button>
+              <button className="ac2-btn" onClick={() => snooze(r)} disabled={testing}
+                title={testing ? 'Test clock is on — set it back to real time to snooze' : undefined}>Snooze 15 min</button>
             </div>
           </div>
         );

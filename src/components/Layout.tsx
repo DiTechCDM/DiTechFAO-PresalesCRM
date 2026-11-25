@@ -18,8 +18,9 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
   const NAV_PANELS = [
     { id: 'firms',     label: 'Firms DB',        ico: '🏢' },
     { id: 'calls',     label: 'Call Tracker',     ico: '📞' },
-    { id: 'allcalls',  label: 'All Calls',        ico: '📋' },
-    { id: 'allcalls2', label: 'All Calls (new)',  ico: '🆕' },
+    // Old All Calls ('allcalls') is hidden; its code is kept in panels/AllCalls.tsx.
+    // To bring it back, re-add: { id: 'allcalls', label: 'All Calls (old)', ico: '📋' }
+    { id: 'allcalls2', label: 'All Calls',        ico: '📋' },
     { id: 'workqueue', label: 'Call Reports',     ico: '🎯' },
     { id: 'team',      label: 'Team KPIs',        ico: '📊' },
     { id: 'funnel',    label: 'Funnel & Revenue', ico: '📈' },
@@ -29,7 +30,7 @@ export default function Layout({ children, currentPanel, setPanel }: any) {
 
   const groups = [
     { label: 'Database',  items: ['firms'] },
-    { label: 'Activity',  items: ['calls','allcalls','allcalls2','workqueue','team'] },
+    { label: 'Activity',  items: ['calls','allcalls2','workqueue','team'] },
     { label: 'Analytics', items: ['funnel'] },
     { label: 'Workspace', items: ['reminders'] },
     { label: 'System',    items: ['admin'] },

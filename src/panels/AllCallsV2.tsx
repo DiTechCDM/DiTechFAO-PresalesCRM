@@ -13,7 +13,9 @@ import {
   IST, MIN, useNow, tsMs, istParts, dueMs, hasTime, fmtClock, fmtDay, dayRel, whenLabel, firmTz,
   myRepName, isTeamViewer, fuStatus, FuStatus, openReminderFor, firmCalls, callQuality, QUALITY_COL, Quality,
   withDueDeliberate, snoozeTarget, CREATED_FROM_NEW, logHistory, takePendingFirm, takePendingView,
+  clockOffset, setClockOffset,
 } from '../lib/followups';
+import { EditCallModal } from './CallTracker'; // same edit form the old All Calls used
 import './AllCallsV2.css';
 
 const PER_PAGE = 50;
@@ -30,8 +32,8 @@ const OUTCOMES: { key: string; label: string }[] = [
   { key: 'ni',  label: '❌ Not interested' },
 ];
 
-type Period = 'today' | '7d' | '30d' | 'month';
-const PERIODS: [Period, string][] = [['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['month', 'This month']];
+type Period = 'today' | '7d' | '30d' | 'month' | 'custom';
+const PERIODS: [Period, string][] = [['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['month', 'This month'], ['custom', 'Custom']];
 
 type ViewKey = 'all' | 'good' | 'dm' | 'cb' | 'em' | 'gk' | 'ni' | 'due' | 'missed';
 
@@ -69,7 +71,25 @@ export default function AllCallsV2() {
   const [view, setView] = useState<ViewKey>('all');
   const [search, setSearch] = useState('');
   const [repF, setRepF] = useState('');
+  const [typeF, setTypeF] = useState('');
+  const [cFrom, setCFrom] = useState(() => addDays(istParts(Date.now()).date, -6));
+  const [cTo, setCTo] = useState(() => istParts(Date.now()).date);
   const [page, setPage] = useState(1);
+  const [editingCall, setEditingCall] = useState<Call | null>(null);
+
+  /* ── Admin test clock (display only; saves are paused while it's moved) ── */
+  const isAdminUser = currentUser?.role === 'admin';
+  const testing = clockOffset() !== 0;
+  const [clockOpen, setClockOpen] = useState(false);
+  const shiftClock = (mins: number) => setClockOffset(clockOffset() + mins * MIN);
+  const jumpClock = (hm: string) => setClockOffset(istMs(istParts(Date.now()).date, hm) - Date.now());
+  const PAUSED = 'Test clock is on — set it back to real time to save changes.';
+
+  const saveEdit = (original: Call, updated: Partial<Call>) => {
+    setCalls(calls.map(c => c.id === original.id ? { ...c, ...updated } : c));
+    setEditingCall(null);
+    showToast('Call updated', 'ok');
+  };
 
   /* ── drawer state ── */
   const [openId, setOpenId] = useState<string | null>(null);
@@ -148,9 +168,11 @@ export default function AllCallsV2() {
   }, [calls]);
 
   /* ── date range ── */
-  const fromDate = period === 'today' ? today : period === '7d' ? addDays(today, -6) : period === '30d' ? addDays(today, -29) : today.slice(0, 8) + '01';
+  const fromDate = period === 'today' ? today : period === '7d' ? addDays(today, -6) : period === '30d' ? addDays(today, -29)
+    : period === 'month' ? today.slice(0, 8) + '01' : (cFrom <= cTo ? cFrom : cTo);
+  const toDate = period === 'custom' ? (cFrom <= cTo ? cTo : cFrom) : today;
   const callDate = (c: Call) => istParts(tsMs(c.ts)).date;
-  const inRange = useMemo(() => scoped.filter(c => { const d = callDate(c); return d >= fromDate && d <= today; }), [scoped, fromDate, today]);
+  const inRange = useMemo(() => scoped.filter(c => { const d = callDate(c); return d >= fromDate && d <= toDate; }), [scoped, fromDate, toDate]);
 
   /* ── today's follow-up queue ── */
   const weekAgo = now - 7 * 1440 * MIN;
@@ -170,7 +192,7 @@ export default function AllCallsV2() {
 
   /* ── views (filters on the table) ── */
   const q = search.trim().toLowerCase();
-  const matchesBase = (c: Call) => (!repF || c.rep === repF) &&
+  const matchesBase = (c: Call) => (!repF || c.rep === repF) && (!typeF || c.type === typeF) &&
     (!q || `${c.firm} ${c.contact || ''} ${c.notes || ''} ${c.rep}`.toLowerCase().includes(q));
   const remStatusOfCall = (c: Call): FuStatus | null => {
     const f = firmOf(c); const r = f && openRemByFirm.get(f.id);
@@ -255,8 +277,8 @@ export default function AllCallsV2() {
 
   const fuMs = fFu === 'custom' ? localInputMs(fCustom) : typeof fFu === 'number' ? fFu : NaN;
   const fuValid = fFu === 'close' || (Number.isFinite(fuMs) && fuMs > now - MIN);
-  const canSave = !!fo && !!fOut && !!fNote.trim() && fFu !== null && fuValid;
-  const saveHint = !fOut ? 'Pick an outcome.' : !fNote.trim() ? 'Write what happened.' : fFu === null ? 'Choose the next follow-up (or close).'
+  const canSave = !testing && !!fo && !!fOut && !!fNote.trim() && fFu !== null && fuValid;
+  const saveHint = testing ? PAUSED : !fOut ? 'Pick an outcome.' : !fNote.trim() ? 'Write what happened.' : fFu === null ? 'Choose the next follow-up (or close).'
     : !fuValid ? 'Pick a follow-up time in the future.' : 'Closes the current follow-up and sets the next one.';
 
   const raMs = raSlot === 'custom' ? localInputMs(raCustom) : typeof raSlot === 'number' ? raSlot : NaN;
@@ -273,6 +295,7 @@ export default function AllCallsV2() {
 
   const doReassign = () => {
     if (!rem || !rst) return;
+    if (testing) { setFlash({ text: PAUSED, ok: false }); return; }
     const to = (team && raRep) ? raRep : rem.rep;
     const at = Number.isFinite(raMs) ? raMs : dueMs(rem);
     if (!Number.isFinite(raMs) && to === rem.rep) { setFlash({ text: 'Pick a new time or person first.', ok: false }); return; }
@@ -286,6 +309,7 @@ export default function AllCallsV2() {
 
   const snooze15 = () => {
     if (!rem) return;
+    if (testing) { setFlash({ text: PAUSED, ok: false }); return; }
     const next = withDueDeliberate(rem, snoozeTarget(rem, now));
     setReminders(reminders.map(r => r.id === rem.id ? next : r));
     logHistory(rem.id, `Snoozed 15 min · ${fmtClock(dueMs(rem))} → ${fmtClock(dueMs(next))}`);
@@ -294,13 +318,14 @@ export default function AllCallsV2() {
 
   const markDone = () => {
     if (!rem || !rst) return;
+    if (testing) { setFlash({ text: PAUSED, ok: false }); return; }
     setReminders(reminders.map(r => r.id === rem.id ? { ...r, done: true } : r));
     logHistory(rem.id, `Marked done without logging a call here${rst.k === 'called' ? ' (' + rst.label.replace(' · not closed', '') + ')' : ''}`);
     setFlash({ text: 'Follow-up closed.', ok: true });
   };
 
   const save = () => {
-    if (!canSave || !fo) return;
+    if (!canSave || !fo || clockOffset() !== 0) return;
     const ts = new Date(now).toLocaleString('sv-SE', { timeZone: IST }).replace(' ', 'T');
     const nextDue = fFu === 'close' ? null : fuMs;
     const nextParts = nextDue !== null ? istParts(nextDue) : null;
@@ -353,13 +378,39 @@ export default function AllCallsV2() {
 
   return (
     <div className="ac2-page">
+      {isAdminUser && (clockOpen || testing) && (
+        <div className="ac2-clock">
+          <span className="lbl">Test clock</span>
+          <span className="now">{new Date(now).toLocaleDateString('en-GB', { timeZone: IST, weekday: 'short', day: 'numeric', month: 'short' })}, {fmtClock(now)}</span>
+          <button className="ac2-btn" onClick={() => shiftClock(-15)}>−15 min</button>
+          <button className="ac2-btn" onClick={() => shiftClock(15)}>+15 min</button>
+          <button className="ac2-btn" onClick={() => shiftClock(60)}>+1 hour</button>
+          <button className="ac2-btn" onClick={() => jumpClock('16:50')}>Jump to 4:50 PM</button>
+          <button className="ac2-btn" onClick={() => jumpClock('17:00')}>Jump to 5:00 PM</button>
+          <button className="ac2-link" onClick={() => { setClockOffset(0); setClockOpen(false); }}>Back to real time</button>
+          <span className="note">
+            {testing ? 'Only your screen sees this time. Saving is paused until you go back to real time.' : 'Admin only · moves time on your screen to watch reminders fire.'}
+          </span>
+        </div>
+      )}
+
       <div className="ac2-hd">
         <div>
-          <div className="ac2-title">All Calls <span className="ac2-chip" style={{ background: '#F0F0FA', color: '#282780', verticalAlign: 'middle' }}>new</span></div>
-          <div className="ac2-sub">{rows.length} calls · {fmtDay(istMs(fromDate, '12:00'))} – {fmtDay(now)} · click any row for the firm's full history</div>
+          <div className="ac2-title">All Calls</div>
+          <div className="ac2-sub">{rows.length} calls · {fmtDay(istMs(fromDate, '12:00'))} – {fmtDay(istMs(toDate, '12:00'))} · click any row for the firm's full history</div>
         </div>
         <div className="ac2-row">
           {PERIODS.map(([k, l]) => <button key={k} className={`ac2-pill ${period === k ? 'on' : ''}`} onClick={() => { setPeriod(k); setPage(1); }}>{l}</button>)}
+          {period === 'custom' && (
+            <>
+              <input type="date" className="ac2-input" aria-label="From" value={cFrom} onChange={e => { setCFrom(e.target.value); setPage(1); }} />
+              <span className="ac2-muted">to</span>
+              <input type="date" className="ac2-input" aria-label="To" value={cTo} onChange={e => { setCTo(e.target.value); setPage(1); }} />
+            </>
+          )}
+          {isAdminUser && !clockOpen && !testing && (
+            <button className="ac2-link" onClick={() => setClockOpen(true)} title="Admin only: move time on your screen to test reminders">🕒 Test clock</button>
+          )}
         </div>
       </div>
 
@@ -416,6 +467,12 @@ export default function AllCallsV2() {
           <div className="ac2-row">
             <input className="ac2-input" style={{ flex: '1 1 260px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search firm, contact, notes…" aria-label="Search" />
+            <label className="ac2-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Type
+              <select className="ac2-select" value={typeF} onChange={e => { setTypeF(e.target.value); setPage(1); }}>
+                <option value="">All types</option>
+                {Object.entries(TYPE_LBL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </label>
             {team && (
               <label className="ac2-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>Rep
                 <select className="ac2-select" value={repF} onChange={e => { setRepF(e.target.value); setPage(1); }}>
@@ -451,7 +508,10 @@ export default function AllCallsV2() {
                     <td><span className="ac2-chip" style={{ background: QUALITY_COL[ql][0], color: QUALITY_COL[ql][1] }}>{ql}</span></td>
                     <td style={{ color: 'var(--t2)', maxWidth: 320 }} title={c.notes || ''}>{(c.notes || '—').length > 90 ? c.notes!.slice(0, 88) + '…' : (c.notes || '—')}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>{st ? <span className="ac2-chip" style={chip(st)}>{st.label}</span> : <span className="ac2-faint">—</span>}</td>
-                    <td><button className="ac2-btn" onClick={e => { e.stopPropagation(); f ? openFirm(f.id) : showToast('Firm not found in Firms DB', 'warn'); }}>Open</button></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="ac2-btn" onClick={e => { e.stopPropagation(); f ? openFirm(f.id) : showToast('Firm not found in Firms DB', 'warn'); }}>Open</button>{' '}
+                      <button className="ac2-btn" onClick={e => { e.stopPropagation(); setEditingCall(c); }}>Edit</button>
+                    </td>
                   </tr>
                 );
               })}
@@ -619,6 +679,7 @@ export default function AllCallsV2() {
                               <b style={{ fontSize: 12.5 }}>{c.rep}</b>
                               <span className="ac2-faint">{TYPE_LBL[c.type] || c.type}{c.contact ? ' · ' + c.contact : ''}</span>
                               <span className="ac2-chip" style={{ background: `${OC_COLORS[c.oc] || '#888'}22`, color: OC_COLORS[c.oc] || '#555' }}>{OC_LABELS[c.oc] || c.oc}</span>
+                              <button className="ac2-link" style={{ marginLeft: 'auto' }} onClick={() => setEditingCall(c)}>Edit</button>
                             </div>
                             {c.notes && <div style={{ fontSize: 12.5, color: 'var(--t2)', marginTop: 4, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{c.notes}</div>}
                           </div>
@@ -652,6 +713,8 @@ export default function AllCallsV2() {
           </aside>
         </>
       )}
+
+      {editingCall && <EditCallModal call={editingCall} firms={firms} onSave={saveEdit} onClose={() => setEditingCall(null)} />}
     </div>
   );
 }
