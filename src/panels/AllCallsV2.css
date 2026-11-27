@@ -84,6 +84,10 @@
 .ac2-box{border:1px solid var(--border);border-radius:10px;padding:13px}
 .ac2-lbl{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--t2);text-transform:uppercase}
 .ac2-fl{font-size:11px;color:var(--t2);display:block}
+.ac2-seg{display:flex;background:#F0F1F7;border-radius:8px;padding:3px;gap:2px}
+.ac2-seg button{flex:1;border:none;border-radius:6px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;background:transparent;color:var(--t2);cursor:pointer}
+.ac2-seg button.on{background:#fff;color:var(--brand);box-shadow:0 1px 3px rgba(20,20,50,.12)}
+.ac2-seg button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 .ac2-tabs{display:flex;gap:4px;border-bottom:.5px solid var(--border)}
 .ac2-tab{border:none;background:none;padding:9px 12px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;font-family:inherit}
 .ac2-tab.on{color:var(--brand);border-bottom-color:var(--brand)}

@@ -14,6 +14,7 @@ import {
   myRepName, isTeamViewer, fuStatus, FuStatus, openReminderFor, firmCalls, callQuality, QUALITY_COL, Quality,
   withDueDeliberate, snoozeTarget, CREATED_FROM_NEW, logHistory, takePendingFirm, takePendingView,
   clockOffset, setClockOffset,
+  REMINDER_KINDS, ReminderKind, kindType, kindTitle, reminderKind, remarkWithKind,
 } from '../lib/followups';
 import { EditCallModal } from './CallTracker'; // same edit form the old All Calls used
 import './AllCallsV2.css';
@@ -105,7 +106,16 @@ export default function AllCallsV2() {
   const [raRep, setRaRep] = useState('');
   const [raSlot, setRaSlot] = useState<number | 'custom' | null>(null);
   const [raCustom, setRaCustom] = useState('');
-  const [flash, setFlash] = useState<{ text: string; ok: boolean } | null>(null);
+  // `at` says where the message shows: next to the follow-up box (top) or the form (bottom)
+  const [flash, setFlash] = useState<{ text: string; ok: boolean; at?: 'top' | 'bottom' } | null>(null);
+  /* "Add reminder only" form */
+  const [mode, setMode] = useState<'call' | 'rem'>('call');
+  const [rKind, setRKind] = useState<ReminderKind>('Call back');
+  const [rWhen, setRWhen] = useState<number | null>(null);
+  const [rCustom, setRCustom] = useState('');
+  const [rRemark, setRRemark] = useState('');
+  const [rRep, setRRep] = useState('');
+  const [rReplace, setRReplace] = useState(false);
 
   /* ── history + good-lead flags (needs the migration) ── */
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -245,6 +255,8 @@ export default function AllCallsV2() {
     setFRep(team ? (f?.assigned_to || me) : me);
     const r = openReminderFor(reminders, id);
     setRaRep(r?.rep || ''); setRaSlot(null); setRaCustom('');
+    setMode('call'); setRKind('Call back'); setRWhen(null); setRCustom(''); setRRemark(''); setRReplace(false);
+    setRRep(team ? (f?.assigned_to || me) : me);
     setFlash(null);
   }
   const openFirmRef = useRef(openFirm);
@@ -282,6 +294,14 @@ export default function AllCallsV2() {
     : !fuValid ? 'Pick a follow-up time in the future.' : 'Closes the current follow-up and sets the next one.';
 
   const raMs = raSlot === 'custom' ? localInputMs(raCustom) : typeof raSlot === 'number' ? raSlot : NaN;
+
+  /* "Add reminder only" */
+  const rDue = rWhen !== null ? rWhen : localInputMs(rCustom);
+  const rValid = Number.isFinite(rDue) && rDue > now - MIN;
+  const canRem = !testing && !!fo && rValid;
+  const rOwner = rRep || me;
+  const saveRemHint = testing ? PAUSED : !Number.isFinite(rDue) ? 'Pick when.' : !rValid ? 'Pick a time in the future.'
+    : `${rOwner} gets a pop-up 15 min before ${dayRel(rDue, now)} ${fmtClock(rDue)}.`;
 
   /* ── actions ── */
   const toggleGood = () => {
@@ -343,7 +363,7 @@ export default function AllCallsV2() {
     let nextRems = reminders.map(r => r.firmId === fo.id && !r.done ? { ...r, done: true } : r);
     if (nextParts) {
       const nr: Reminder = {
-        id: uid(), type: 'follow-up', title: `Follow up — ${fo.name}`,
+        id: uid(), type: kindType('Call back'), title: kindTitle('Call back', fo.name),
         firmId: fo.id, firmName: fo.name, contact: newCall.contact,
         dueDate: nextParts.date, dueTime: nextParts.time,
         notes: fRemark.trim() || fNote.trim(), rep: owner, done: false,
@@ -363,8 +383,28 @@ export default function AllCallsV2() {
 
     setFOut(''); setFNote(''); setFFu(null); setFCustom(''); setFRemark(''); setFStage('');
     setRaRep(owner);
-    setFlash({ text: nextParts ? `Call saved. Next follow-up: ${owner}, ${dayRel(nextDue as number, now)} ${fmtClock(nextDue as number)}.` : 'Call saved. No further follow-up.', ok: true });
+    setFlash({ at: 'bottom', ok: true, text: nextParts ? `Call saved. Next follow-up: ${owner}, ${dayRel(nextDue as number, now)} ${fmtClock(nextDue as number)}.` : 'Call saved. No further follow-up.' });
     showToast(`${OC_LABELS[fOut] || fOut} — ${fo.name}`, 'ok');
+  };
+
+  /** Add a reminder without logging a call; optionally replace the current open one. */
+  const saveRem = () => {
+    if (!canRem || !fo || clockOffset() !== 0) return;
+    const p = istParts(rDue);
+    const nr: Reminder = {
+      id: uid(), type: kindType(rKind), title: kindTitle(rKind, fo.name),
+      firmId: fo.id, firmName: fo.name, contact: primary?.name || fo.contact_name || '',
+      dueDate: p.date, dueTime: p.time, notes: rRemark.trim() || rKind, rep: rOwner, done: false,
+      createdAt: new Date(now).toISOString(), createdFrom: CREATED_FROM_NEW as Reminder['createdFrom'],
+    };
+    const replacing = rReplace && rem ? rem : null;
+    const base = replacing ? reminders.map(r => r.id === replacing.id ? { ...r, done: true } : r) : reminders;
+    setReminders([nr, ...base]);
+    if (replacing) logHistory(replacing.id, `Replaced by a new ${rKind.toLowerCase()} reminder for ${rOwner}, ${dayRel(rDue, now)} ${fmtClock(rDue)}`);
+    setTab('rems');
+    setRWhen(null); setRCustom(''); setRRemark(''); setRReplace(false);
+    setFlash({ at: 'bottom', ok: true, text: `${rKind} reminder added for ${rOwner}, ${dayRel(rDue, now)} ${fmtClock(rDue)}.` });
+    showToast(`${rKind} reminder added — ${fo.name}`, 'ok');
   };
 
   /* ── render ── */
@@ -446,7 +486,7 @@ export default function AllCallsV2() {
                   <span className="ac2-chip" style={chip(st)}>{st.k === 'missed' && hasTime(r) ? `${fmtClock(dueMs(r))} · missed` : st.label}</span>
                   <span className="f">{r.firmName || f?.name || r.title}</span>
                   <span className="c">{[r.contact || f?.contact_name, r.rep].filter(Boolean).join(' · ')}</span>
-                  {(r.notes || r.title) && <span className="m">{r.notes || r.title}</span>}
+                  {(r.notes || r.title) && <span className="m">{remarkWithKind(r)}</span>}
                 </button>
               );
             })}
@@ -578,7 +618,7 @@ export default function AllCallsV2() {
                     <div className="ac2-lbl">Next follow-up</div>
                     <span className="ac2-chip" style={chip(rst)}>{rst.label}</span>
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginTop: 6 }}>{whenLabel(rem, now)} · {rem.rep || 'unassigned'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, marginTop: 6 }}>{reminderKind(rem)} · {whenLabel(rem, now)} · {rem.rep || 'unassigned'}</div>
                   <div style={{ fontSize: 12.5, color: 'var(--t2)', marginTop: 4 }}>Remark: {rem.notes || rem.title}</div>
                   {rst.k === 'missed' && <div className="ac2-err" style={{ marginTop: 6 }}>Missed. Admin has been alerted. {team ? 'Pick who calls and when:' : 'Call now or reschedule:'}</div>}
                   {rst.k === 'called' && <div style={{ fontSize: 12, color: 'var(--blue)', marginTop: 6 }}>A call was logged for this firm but the follow-up is still open. Close it, or log the call here to set the next one.</div>}
@@ -608,18 +648,61 @@ export default function AllCallsV2() {
                       </div>
                     </>
                   )}
-                  {flash && <div className={flash.ok ? 'ac2-ok' : 'ac2-err'} style={{ marginTop: 8 }}>{flash.text}</div>}
+                  {flash && flash.at !== 'bottom' && <div className={flash.ok ? 'ac2-ok' : 'ac2-err'} style={{ marginTop: 8 }}>{flash.text}</div>}
                 </section>
               ) : (
                 <div className="ac2-box" style={{ borderStyle: 'dashed', fontSize: 12.5, color: 'var(--t2)' }}>
-                  No open follow-up for this firm. Log the call below and set one.
-                  {flash && <div className={flash.ok ? 'ac2-ok' : 'ac2-err'} style={{ marginTop: 8 }}>{flash.text}</div>}
+                  No open follow-up for this firm. Log the call below and set one, or add a reminder only.
+                  {flash && flash.at !== 'bottom' && <div className={flash.ok ? 'ac2-ok' : 'ac2-err'} style={{ marginTop: 8 }}>{flash.text}</div>}
                 </div>
               )}
 
-              {/* Log this call */}
+              {/* Log a call / Add reminder only */}
               <section className="ac2-box">
-                <div className="ac2-lbl">Log this call</div>
+                <div className="ac2-seg" role="tablist" aria-label="What do you want to do?">
+                  <button role="tab" aria-selected={mode === 'call'} className={mode === 'call' ? 'on' : ''} onClick={() => { setMode('call'); setFlash(null); }}>Log a call</button>
+                  <button role="tab" aria-selected={mode === 'rem'} className={mode === 'rem' ? 'on' : ''} onClick={() => { setMode('rem'); setFlash(null); }}>Add reminder only</button>
+                </div>
+
+                {mode === 'rem' && (
+                  <>
+                    <div className="ac2-faint" style={{ marginTop: 10 }}>No call needed – just set a follow-up for yourself or a teammate.</div>
+                    <div className="ac2-fl" style={{ marginTop: 10 }}>Type</div>
+                    <div className="ac2-row" style={{ marginTop: 4 }}>
+                      {REMINDER_KINDS.map(k => <button key={k} className={`ac2-pill ${rKind === k ? 'on' : ''}`} onClick={() => setRKind(k)}>{k}</button>)}
+                    </div>
+                    <div className="ac2-fl" style={{ marginTop: 10 }}>When * <span className="ac2-faint">(your time, IST)</span></div>
+                    <div className="ac2-row" style={{ marginTop: 4 }}>
+                      {fuChoices.map(([l, ms]) => <button key={l} className={`ac2-pill ${rWhen === ms ? 'on' : ''}`} onClick={() => { setRWhen(ms); setRCustom(''); }}>{l}</button>)}
+                      <label className="ac2-fl" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>or pick
+                        <input type="datetime-local" className="ac2-input" value={rCustom} onChange={e => { setRCustom(e.target.value); setRWhen(null); }} />
+                      </label>
+                    </div>
+                    <div className="ac2-row" style={{ marginTop: 8, alignItems: 'flex-end' }}>
+                      <label className="ac2-fl" style={{ flex: '1 1 220px' }}>Remark
+                        <input className="ac2-input" style={{ display: 'block', width: '100%', marginTop: 4 }} value={rRemark} onChange={e => setRRemark(e.target.value)} placeholder="e.g. Send pricing deck, then call" />
+                      </label>
+                      <label className="ac2-fl">Assign to
+                        <select className="ac2-select" style={{ display: 'block', marginTop: 4 }} value={rRep} onChange={e => setRRep(e.target.value)}>
+                          {[...new Set([...activeReps, rRep].filter(Boolean))].map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    {rem && (
+                      <div className="ac2-row" style={{ marginTop: 10 }}>
+                        <span className="ac2-faint">Current follow-up ({whenLabel(rem, now)})</span>
+                        <button className={`ac2-pill ${!rReplace ? 'on' : ''}`} onClick={() => setRReplace(false)}>Keep it too</button>
+                        <button className={`ac2-pill ${rReplace ? 'on' : ''}`} onClick={() => setRReplace(true)}>Replace it</button>
+                      </div>
+                    )}
+                    <div className="ac2-row" style={{ marginTop: 12 }}>
+                      <button className="ac2-btn primary lg" disabled={!canRem} onClick={saveRem}>Add reminder</button>
+                      <span className="ac2-faint">{saveRemHint}</span>
+                    </div>
+                  </>
+                )}
+
+                {mode === 'call' && (<>
                 {contacts.length > 1 && (
                   <label className="ac2-fl" style={{ marginTop: 10 }}>Spoke to
                     <select className="ac2-select" style={{ display: 'block', width: '100%', marginTop: 4 }} value={fContact} onChange={e => setFContact(e.target.value)}>
@@ -666,6 +749,8 @@ export default function AllCallsV2() {
                   <button className="ac2-btn primary lg" disabled={!canSave} onClick={save}>Save call &amp; set reminder</button>
                   <span className="ac2-faint">{saveHint}</span>
                 </div>
+                </>)}
+                {flash && flash.at === 'bottom' && <div className={flash.ok ? 'ac2-ok' : 'ac2-err'} style={{ marginTop: 8 }}>{flash.text}</div>}
               </section>
 
               <div className="ac2-tabs">
@@ -705,7 +790,7 @@ export default function AllCallsV2() {
                       return (
                         <li key={r.id} style={{ flexDirection: 'column', gap: 3, border: '.5px solid var(--border)', borderRadius: 8, padding: '9px 11px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                            <b style={{ fontSize: 12.5 }}>{whenLabel(r, now)} · {r.rep || '—'}</b>
+                            <b style={{ fontSize: 12.5 }}>{reminderKind(r)} · {whenLabel(r, now)} · {r.rep || '—'}</b>
                             <span className="ac2-chip" style={chip(st)}>{st.label}</span>
                           </div>
                           <div style={{ fontSize: 12.5, color: 'var(--t2)' }}>{r.notes || r.title}</div>

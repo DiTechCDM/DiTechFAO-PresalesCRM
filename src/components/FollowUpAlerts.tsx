@@ -16,7 +16,7 @@ import { useAppContext } from '../store';
 import { Reminder } from '../types';
 import {
   useNow, fuStatus, dueMs, hasTime, fmtClock, fmtDur, whenLabel, withDueDeliberate, snoozeTarget, logHistory,
-  myRepName, isEscalationViewer, dismissedSet, dismiss, MIN, clockOffset, setClockOffset,
+  myRepName, isEscalationViewer, dismissedSet, dismiss, MIN, clockOffset, setClockOffset, remarkWithKind,
 } from '../lib/followups';
 import '../panels/AllCallsV2.css';
 
@@ -81,7 +81,7 @@ function Alerts({ onOpenFirm }: Props) {
                 <div className="k" style={{ color: tone }}>{kind}</div>
                 <div className="t">{[contact, r.firmName || f?.name || r.title].filter(Boolean).join(' · ')}</div>
                 <div className="s">Due {whenLabel(r, now)} · {r.rep || '—'}{phone ? ' · ' + phone : ''}</div>
-                {(r.notes || r.title) && <div className="r">{r.notes || r.title}</div>}
+                {(r.notes || r.title) && <div className="r">{remarkWithKind(r)}</div>}
               </div>
               <button className="x" aria-label="Dismiss" onClick={() => { dismiss(key); bump(n => n + 1); }}>✕</button>
             </div>

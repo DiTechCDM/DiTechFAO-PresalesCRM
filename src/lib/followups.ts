@@ -181,6 +181,29 @@ export function openReminderFor(reminders: Reminder[], firmId: string) {
   return reminders.filter(r => r.firmId === firmId && !r.done).sort((a, b) => dueMs(a) - dueMs(b))[0] || null;
 }
 
+/* ── Reminder kinds ───────────────────────────────────────────────
+   The new page offers five kinds. No schema change: the kind is kept as
+   the title prefix ("Send email — Firm") and mapped onto the existing
+   reminders.type column. Older reminders fall back to their type. */
+export const REMINDER_KINDS = ['Call back', 'Send email', 'Check email reply', 'LinkedIn message', 'Other task'] as const;
+export type ReminderKind = typeof REMINDER_KINDS[number];
+const KIND_TO_TYPE: Record<ReminderKind, string> = {
+  'Call back': 'follow-up', 'Send email': 'task', 'Check email reply': 'task', 'LinkedIn message': 'linkedin', 'Other task': 'task',
+};
+const TYPE_TO_KIND: Record<string, string> = { 'follow-up': 'Call back', linkedin: 'LinkedIn message', meeting: 'Meeting', task: 'Task', proposal: 'Proposal' };
+export const kindType = (k: ReminderKind) => KIND_TO_TYPE[k] as Reminder['type'];
+export const kindTitle = (k: ReminderKind, firmName: string) => `${k} — ${firmName}`;
+export function reminderKind(r: Reminder): string {
+  const t = r.title || '';
+  const hit = REMINDER_KINDS.find(k => t.startsWith(k + ' — '));
+  return hit || TYPE_TO_KIND[r.type] || 'Call back';
+}
+/** "Send email · remark" — the kind is left out for plain call-backs. */
+export function remarkWithKind(r: Reminder) {
+  const kind = reminderKind(r), text = r.notes || r.title || '';
+  return kind === 'Call back' ? text : `${kind} · ${text}`;
+}
+
 /* ── Call quality ─────────────────────────────────────────────── */
 
 export type Quality = 'Hot' | 'Warm' | 'Cold' | 'Lost';
